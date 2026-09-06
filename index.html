@@ -1,0 +1,2100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, interactive-widget=resizes-content">
+<meta name="theme-color" content="#E8EAE3">
+<title>Daily Macro Ledger</title>
+<meta name="description" content="A quick shared log for calories and macros.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#E8EAE3;
+  --card:#FBFBF8;
+  --ink:#171A15;
+  --muted:#6B7065;
+  --line:#D3D7CB;
+  --pine:#2E5D4F;
+  --pine-soft:#2E5D4F1f;
+  --ochre:#B67B18;
+  --sans:"Instrument Sans", ui-sans-serif, system-ui, "Helvetica Neue", Arial, sans-serif;
+  --serif:"Instrument Serif", Georgia, "Times New Roman", serif;
+  --r:7px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper);color:var(--ink);font-family:var(--sans);
+  font-size:16px;line-height:1.45;font-feature-settings:"tnum" 1,"cv05" 1;
+  overscroll-behavior-y:none;
+}
+button,input{font:inherit;color:inherit}
+button{background:none;border:0;padding:0;cursor:pointer}
+input{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:9px 10px;width:100%;min-width:0}
+input:focus-visible,button:focus-visible{outline:2px solid var(--pine);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}
+.hidden{display:none !important}
+
+/* ---------- PIN gate ---------- */
+#gate{position:fixed;inset:0;background:var(--paper);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;padding:24px;z-index:50}
+#gate h1{font-family:var(--serif);font-weight:400;font-size:34px;line-height:1.1;margin:0 0 4px;text-align:center}
+#gate p{color:var(--muted);font-size:14px;margin:0 0 26px;text-align:center;max-width:30ch}
+.dots{display:flex;gap:11px;margin-bottom:8px}
+.dot{width:13px;height:13px;border-radius:50%;border:1.5px solid var(--muted)}
+.dot.on{background:var(--pine);border-color:var(--pine)}
+.gate-msg{height:22px;font-size:13.5px;color:var(--ochre);margin-bottom:14px;text-align:center}
+.pad{display:grid;grid-template-columns:repeat(3,74px);gap:12px}
+.pad button{height:60px;border-radius:var(--r);background:var(--card);border:1px solid var(--line);
+  font-size:21px;font-variant-numeric:tabular-nums}
+.pad button:active{background:var(--pine);color:#fff;border-color:var(--pine)}
+.pad .wide{font-size:14px;color:var(--muted)}
+
+/* ---------- summary ---------- */
+#top{position:sticky;top:0;z-index:20;background:var(--paper);
+  border-bottom:1px solid var(--line);padding:calc(env(safe-area-inset-top) + 10px) 16px 0}
+.sumhead{display:flex;align-items:flex-end;gap:12px}
+.kcal{font-family:var(--serif);font-size:52px;line-height:.86;letter-spacing:-.01em}
+.kcal-meta{flex:1;padding-bottom:3px}
+.kcal-meta .lbl{font-size:12.5px;color:var(--muted)}
+.kcal-meta .pct{font-size:13.5px;color:var(--pine);font-weight:600}
+.kcal-meta .pct.over{color:var(--ochre)}
+.gear{width:38px;height:38px;border:1px solid var(--line);border-radius:var(--r);
+  display:grid;place-items:center;background:var(--card);flex:none}
+.gear svg{width:17px;height:17px}
+.rail{height:3px;background:var(--pine-soft);border-radius:2px;margin:10px 0 0;overflow:hidden}
+.rail i{display:block;height:100%;background:var(--pine);width:0}
+.rail i.over{background:var(--ochre)}
+.macros{display:flex;gap:0;overflow-x:auto;scrollbar-width:none;padding:10px 0 0;margin:0 -16px;
+  padding-left:16px;padding-right:16px}
+.macros::-webkit-scrollbar{display:none}
+.m{flex:none;min-width:74px;padding-right:14px;margin-right:14px;border-right:1px solid var(--line)}
+.m:last-child{border-right:0}
+.m .v{font-size:17px;font-weight:600;letter-spacing:-.01em}
+.m .v span{font-size:11.5px;font-weight:400;color:var(--muted);margin-left:2px}
+.m .n{font-size:11.5px;color:var(--muted)}
+.m .sub{font-size:11.5px;color:var(--pine);font-weight:600}
+.m .sub.over{color:var(--ochre)}
+.tabs{display:flex;justify-content:center;padding:4px 0 6px}
+.tabs button{color:var(--muted);font-size:12px;padding:2px 12px}
+
+/* ---------- settings panel ---------- */
+#panel{background:var(--card);border-bottom:1px solid var(--line);padding:4px 16px 18px}
+.sect{font-size:12.5px;color:var(--muted);padding:16px 0 8px;border-top:1px solid var(--line);margin-top:14px}
+.sect:first-of-type{border-top:0;margin-top:0}
+.prow{display:grid;grid-template-columns:1fr 88px auto;gap:10px;align-items:center;padding:5px 0}
+.prow .pn{font-size:14.5px}
+.prow input{padding:7px 9px;text-align:right}
+.chips{display:flex;gap:0;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--card)}
+.chips button{padding:6px 9px;font-size:12.5px;color:var(--muted);border-right:1px solid var(--line);min-width:34px}
+.chips button:last-child{border-right:0}
+.chips button[aria-pressed="true"]{background:var(--pine);color:#fff}
+.btn{border:1px solid var(--line);border-radius:var(--r);padding:10px 14px;background:var(--card);font-size:14.5px}
+.btn.solid{background:var(--pine);border-color:var(--pine);color:#fff;font-weight:600}
+.btn.warn{color:var(--ochre)}
+.btn.armed{background:var(--ochre);border-color:var(--ochre);color:#fff;font-weight:600}
+.btn.block{width:100%;text-align:center}
+.brow{display:flex;gap:9px;margin-top:10px}
+.note{font-size:12.5px;color:var(--muted);margin-top:8px}
+
+/* ---------- add bar ---------- */
+#addbar{position:sticky;top:0;z-index:10;padding:12px 16px 4px}
+#addbtn{width:100%;border:1px dashed var(--pine);color:var(--pine);border-radius:var(--r);
+  padding:12px;font-weight:600;font-size:15px;background:#2E5D4F0d}
+
+/* ---------- entries ---------- */
+main{padding:6px 16px calc(env(safe-area-inset-bottom) + 40px)}
+.entry{border-left:2px solid var(--line);padding-left:12px;margin:0 0 2px;position:relative}
+.entry.open{border-left-color:var(--pine);background:var(--card);border-radius:0 var(--r) var(--r) 0;
+  padding:12px 12px 14px 12px;margin:10px 0}
+.head{display:flex;align-items:baseline;gap:8px;padding:11px 0;width:100%;text-align:left;
+  border-bottom:1px solid var(--line)}
+.entry.open .head{border-bottom:0;padding:0 0 10px}
+.head .nm{font-size:15.5px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.head .nm em{font-style:normal;font-weight:400;color:var(--muted);font-size:13px;margin-left:6px}
+.head .k{font-size:13px;color:var(--muted);flex:none}
+.head .k b{color:var(--ink);font-weight:600}
+.head .cal{font-size:15px;font-weight:600;flex:none;min-width:42px;text-align:right}
+.entry.open .head{align-items:center}
+.collapse{display:grid;place-items:center;flex:none;color:var(--pine);width:34px;height:30px;
+  border:1px solid var(--line);border-radius:var(--r);background:var(--card)}
+.collapse svg{width:17px;height:17px}
+.fld{margin-top:11px}
+.fld > label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:5px}
+.qtyrow{display:flex;gap:9px}
+.qtyrow input{flex:1}
+.namewrap{position:relative}
+.sugg{position:absolute;left:0;right:0;top:calc(100% + 3px);background:var(--card);border:1px solid var(--line);
+  border-radius:var(--r);z-index:15;overflow:hidden;box-shadow:0 8px 20px #171a1518}
+.sugg button{display:block;width:100%;text-align:left;padding:10px 11px;font-size:14.5px;
+  border-bottom:1px solid var(--line)}
+.sugg button:last-child{border-bottom:0}
+.sugg button span{color:var(--muted);font-size:12.5px;margin-left:6px}
+.labelbox{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:9px}
+.cell{position:relative}
+.cell input{padding-right:34px;text-align:right}
+.cell label{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:12.5px;
+  color:var(--muted);pointer-events:none}
+.cell .u{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:12px;
+  color:var(--muted);pointer-events:none}
+.cell.wide{grid-column:1 / -1}
+.acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.acts .btn{flex:1;text-align:center;padding:10px 8px;font-size:13.5px}
+.empty{text-align:center;color:var(--muted);font-size:14px;padding:46px 20px;line-height:1.6}
+.empty b{display:block;font-family:var(--serif);font-size:26px;color:var(--ink);font-weight:400;margin-bottom:6px}
+.foot{display:flex;justify-content:space-between;align-items:center;gap:10px;
+  color:var(--muted);font-size:12px;padding:22px 2px 0;text-align:left}
+.sync{font-size:12px;color:var(--muted)}
+.sync.warn{color:var(--ochre)}
+
+#toast{position:fixed;left:50%;transform:translateX(-50%) translateY(20px);bottom:26px;background:var(--ink);
+  color:var(--paper);padding:10px 16px;border-radius:var(--r);font-size:14px;opacity:0;pointer-events:none;
+  transition:opacity .18s,transform .18s;z-index:60;max-width:88vw;text-align:center}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* collapsible nutrition label */
+.lblhead{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:2px 0}
+.lblhead .t{font-size:12.5px;color:var(--muted);flex:none}
+.lblhead .s{flex:1;font-size:12.5px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lblhead svg{width:16px;height:16px;color:var(--muted);flex:none;transition:transform .15s}
+.lblhead.open svg{transform:rotate(180deg)}
+.lblbody.hidden{display:none}
+
+/* weight row */
+.wrow{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;margin-top:4px}
+.wrow input{text-align:right}
+
+/* code change output */
+#codewrap{margin-top:10px}
+#codeout{width:100%;height:78px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;
+  background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:8px;color:var(--ink);
+  white-space:pre;overflow:auto}
+
+/* history strip */
+#history{padding:26px 16px calc(env(safe-area-inset-bottom) + 40px)}
+.hhead{display:flex;align-items:center;justify-content:space-between;font-size:12.5px;color:var(--muted);
+  border-bottom:1px solid var(--line);padding-bottom:8px}
+.btn.tiny{padding:5px 12px;font-size:12.5px;color:var(--pine);font-weight:600}
+.hempty{font-size:13px;color:var(--muted);padding:14px 0;line-height:1.5}
+.hrow{display:flex;align-items:baseline;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.hrow .d{flex:1;color:var(--ink)}
+.hrow .c{font-weight:600}
+.hrow .c i{font-style:normal;font-weight:400;color:var(--muted);font-size:11px;margin-left:2px}
+.hrow .mm{color:var(--muted);min-width:46px;text-align:right}
+.hrow .w{color:var(--ochre);min-width:62px;text-align:right}
+
+/* chart sheet */
+#sheet{position:fixed;inset:0;z-index:40;background:var(--paper);display:flex;flex-direction:column;
+  padding:calc(env(safe-area-inset-top) + 12px) 14px calc(env(safe-area-inset-bottom) + 14px)}
+.sh-top{display:flex;align-items:center;gap:10px}
+.sh-top h2{font-family:var(--serif);font-weight:400;font-size:24px;margin:0;flex:1}
+.sh-read{font-size:13px;color:var(--muted);padding:8px 2px 4px;min-height:22px}
+.cvwrap{flex:1;min-height:200px;position:relative;touch-action:none}
+.cvwrap canvas{display:block;width:100%;height:100%;cursor:grab}
+#ranges{display:flex;gap:0;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;
+  background:var(--card);margin-top:12px;align-self:center}
+#ranges button{padding:8px 16px;font-size:13px;color:var(--muted);border-right:1px solid var(--line)}
+#ranges button:last-child{border-right:0}
+#ranges button[aria-pressed="true"]{background:var(--pine);color:#fff}
+.sh-legend{display:flex;gap:16px;justify-content:center;font-size:12px;color:var(--muted);padding-top:10px}
+.sh-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.sh-hint{text-align:center;font-size:11.5px;color:var(--muted);padding-top:8px}
+
+#rollover{margin:12px 16px 0;border:1px solid var(--line);border-left:3px solid var(--ochre);
+  background:var(--card);border-radius:0 var(--r) var(--r) 0;padding:12px 13px}
+#rollover.hidden{display:none}
+#rollover p{margin:0 0 10px;font-size:13.5px;line-height:1.45}
+#rollover p b{font-weight:600}
+#rollover .brow{margin-top:0}
+#rollover .btn{flex:1;text-align:center;padding:9px 8px;font-size:13.5px}
+
+#help{position:fixed;inset:0;z-index:45;background:var(--paper);display:flex;flex-direction:column;
+  padding:calc(env(safe-area-inset-top) + 12px) 0 0}
+#help.hidden{display:none}
+.hp-top{display:flex;align-items:center;gap:10px;padding:0 14px 10px;border-bottom:1px solid var(--line)}
+.hp-top h2{font-family:var(--serif);font-weight:400;font-size:24px;margin:0;flex:1}
+.hp-body{flex:1;overflow-y:auto;padding:6px 14px calc(env(safe-area-inset-bottom) + 30px);
+  -webkit-overflow-scrolling:touch}
+.hp-body h3{font-size:12.5px;color:var(--muted);font-weight:400;margin:22px 0 2px;
+  padding-top:14px;border-top:1px solid var(--line)}
+.hp-body h3:first-child{border-top:0;padding-top:4px;margin-top:6px}
+details.q{border-bottom:1px solid var(--line)}
+details.q summary{list-style:none;cursor:pointer;padding:12px 24px 12px 0;font-size:14.5px;
+  font-weight:600;position:relative}
+details.q summary::-webkit-details-marker{display:none}
+details.q summary:after{content:'';position:absolute;right:4px;top:17px;width:8px;height:8px;
+  border-right:1.8px solid var(--muted);border-bottom:1.8px solid var(--muted);
+  transform:rotate(45deg);transition:transform .15s}
+details.q[open] summary:after{transform:rotate(-135deg);top:20px}
+details.q .a{padding:0 0 14px;font-size:14px;line-height:1.55;color:var(--ink)}
+details.q .a p{margin:0 0 9px}
+details.q .a p:last-child{margin-bottom:0}
+details.q .a ol{margin:0 0 9px;padding-left:20px}
+details.q .a li{margin-bottom:5px}
+details.q .a em{font-style:normal;color:var(--muted)}
+details.q .a code{background:var(--card);border:1px solid var(--line);border-radius:4px;
+  padding:1px 5px;font-size:12.5px;font-family:ui-monospace,Menlo,Consolas,monospace}
+
+/* --- on-screen keyboard handling ------------------------------------ */
+:root{--kb:0px}
+/* the summary bar folds to a single line while typing, freeing the screen */
+body.kb .macros,
+body.kb .tabs,
+body.kb #rollover,
+body.kb #addbar,
+body.kb #history{display:none}
+body.kb .kcal{font-size:30px}
+body.kb .kcal-meta .lbl{display:none}
+body.kb #top{padding-bottom:4px}
+body.kb .rail{margin-top:6px}
+body.kb main{padding-bottom:calc(var(--kb) + 24px)}
+body.kb #panel{padding-bottom:calc(var(--kb) + 24px)}
+/* leave room for the sticky header when scrolling a card into view */
+.entry{scroll-margin-top:118px;scroll-margin-bottom:20px}
+body.kb .entry{scroll-margin-top:78px}
+.prow,.wrow{scroll-margin-top:96px;scroll-margin-bottom:20px}
+/* suggestions flip above the field when there is no room below */
+.sugg.up{top:auto;bottom:calc(100% + 3px)}
+
+/* item / meal toggle */
+.typechips{display:flex;gap:0;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;
+  background:var(--card);margin-top:11px;width:100%}
+.typechips button{flex:1;padding:8px 10px;font-size:13px;color:var(--muted);border-right:1px solid var(--line)}
+.typechips button:last-child{border-right:0}
+.typechips button[aria-pressed="true"]{background:var(--pine);color:#fff;font-weight:600}
+
+/* meal ingredients */
+.parts{margin-top:13px;border-top:1px solid var(--line);padding-top:10px}
+.parts > .lbl{font-size:12.5px;color:var(--muted);display:block;margin-bottom:2px}
+.part{border-top:1px solid var(--line);padding:9px 0}
+.part:first-of-type{border-top:0}
+.part .r2{display:flex;gap:8px;align-items:center;margin-top:7px}
+.part .r2 input{flex:1;text-align:right}
+.part .kc{font-size:12px;color:var(--muted);min-width:56px;text-align:right}
+.part .x{flex:none;border:1px solid var(--line);background:var(--card);border-radius:var(--r);
+  padding:8px 11px;color:var(--ochre);font-size:13px}
+.addpart{margin-top:10px;width:100%;border:1px dashed var(--line);color:var(--pine);border-radius:var(--r);
+  padding:9px;font-size:13.5px;font-weight:600}
+.mealtot{margin-top:11px;background:var(--paper);border-radius:var(--r);padding:9px 11px;
+  font-size:13px;line-height:1.5}
+.mealtot b{font-weight:600}
+.mealtot span{color:var(--muted)}
+.allof{flex:none;border:1px solid var(--line);background:var(--card);border-radius:var(--r);
+  padding:9px 11px;font-size:12.5px;color:var(--pine);white-space:nowrap}
+
+/* collapsible history */
+.hhead{cursor:pointer}
+.hhead .lft{display:flex;align-items:center;gap:7px;flex:1}
+.hhead svg{width:15px;height:15px;color:var(--muted);transition:transform .15s}
+.hhead.open svg{transform:rotate(180deg)}
+#hrows.hidden{display:none}
+
+.plabel{margin-top:8px}
+.lblhead.small{padding:7px 22px 7px 0}
+.lblhead.small .s{font-size:12.5px;color:var(--muted);flex:1}
+.lblhead.small svg{width:14px;height:14px}
+.plabel .grid{grid-template-columns:1fr 1fr;gap:7px;margin-top:8px}
+.plabel .cell input{padding:7px 30px 7px 8px;font-size:13.5px}
+.plabel .cell label{font-size:11.5px}
+.plabel .cell .u{font-size:11px;right:8px}
+.plabel .servrow{display:flex;gap:8px;margin-top:8px}
+.plabel .servrow input{flex:1;text-align:right}
+.pnew{color:var(--ochre)}
+@media (prefers-reduced-motion:reduce){*{transition:none !important;animation:none !important}}
+@media (min-width:620px){body{max-width:600px;margin:0 auto;border-left:1px solid var(--line);
+  border-right:1px solid var(--line);min-height:100vh;background:var(--paper)}}
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <h1>Daily Macro Ledger</h1>
+  <p id="gate-sub">Enter your 6-digit code to open your log.</p>
+  <div class="dots" id="dots"></div>
+  <div class="gate-msg" id="gatemsg"></div>
+  <div class="pad" id="pad"></div>
+</div>
+
+<div id="app" class="hidden">
+  <div id="top">
+    <div class="sumhead">
+      <div class="kcal num" id="s-kcal">0</div>
+      <div class="kcal-meta">
+        <div class="lbl">calories today</div>
+        <div class="pct" id="s-kcal-pct"></div>
+      </div>
+      <button class="gear" id="gearbtn" aria-label="Units, targets and settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+          <circle cx="12" cy="12" r="3.2"/><path d="M12 2.6v2.2M12 19.2v2.2M21.4 12h-2.2M4.8 12H2.6M18.6 5.4l-1.6 1.6M7 17l-1.6 1.6M18.6 18.6L17 17M7 7 5.4 5.4"/>
+        </svg>
+      </button>
+    </div>
+    <div class="rail"><i id="s-rail"></i></div>
+    <div class="macros" id="s-macros"></div>
+    <div class="tabs"><button id="tabbtn">more nutrients</button></div>
+  </div>
+
+  <div id="panel" class="hidden">
+    <div class="sect">Your day</div>
+    <button class="btn block solid" id="newday">Start a new day</button>
+    <div class="note">Keeps today's totals in your history, then clears the entries.</div>
+    <button class="btn block warn" id="clearday" style="margin-top:10px">Clear today's entries</button>
+    <div class="note">Throws today away without recording it.</div>
+    <div class="note" id="daynote" style="margin-top:10px"></div>
+    <div class="sect">Weight</div>
+    <div class="wrow">
+      <input id="wt" class="num" inputmode="decimal" placeholder="Weight">
+      <div class="chips" id="wunits">
+        <button data-u="lb">lb</button><button data-u="kg">kg</button>
+      </div>
+    </div>
+    <div class="note">Recorded against the current day and kept when you start a new one.</div>
+    <div class="sect">Units and daily targets</div>
+    <div id="p-rows"></div>
+    <div class="sect">This device</div>
+    <div class="note" id="whoami"></div>
+    <div class="note">The food catalog is shared with everyone who has a code. Your entries and targets are yours alone.
+      To change a code or add a person, run setup.html again and commit the new VAULT line.</div>
+    <div class="brow">
+      <button class="btn" id="syncnow" style="flex:1">Refresh now</button>
+      <button class="btn" id="lock" style="flex:1">Lock the ledger</button>
+    </div>
+    <div class="sect">Change your code</div>
+    <div class="wrow">
+      <input id="newcode" inputmode="numeric" maxlength="6" placeholder="New 6-digit code">
+      <button class="btn" id="changecode">Change code</button>
+    </div>
+    <div class="note">Re-locks your access with the new code. This device switches straight away; paste the line
+      below into index.html and commit it so your other devices follow.</div>
+    <div id="codewrap" class="hidden">
+      <textarea id="codeout" readonly spellcheck="false"></textarea>
+      <button class="btn block" id="copycode" style="margin-top:8px">Copy the VAULT line</button>
+    </div>
+    <div class="sect">Help</div>
+    <button class="btn block" id="helpbtn">Help &amp; how-to</button>
+  </div>
+
+  <div id="rollover" class="hidden"></div>
+  <div id="addbar"><button id="addbtn">Add an item</button></div>
+  <main id="list"></main>
+  <section id="history"></section>
+</div>
+
+<div id="help" class="hidden">
+  <div class="hp-top">
+    <h2>How this works</h2>
+    <button class="btn" id="helpclose">Close</button>
+  </div>
+  <div class="hp-body">
+
+    <h3>Every day</h3>
+
+    <details class="q"><summary>Logging something you ate</summary><div class="a">
+      <p>Tap <em>Add an item</em>, start typing the name, and pick from the list if it comes up — the label
+      fills itself in and folds away to a summary line. Then enter how much you had and tap the chevron at
+      the top of the card to save and collapse it.</p>
+      <p>For something new, fill in whatever the package tells you. Nothing is required. Missing values
+      show as a dash and are skipped in the totals, so a food with only calories still works.</p>
+    </div></details>
+
+    <details class="q"><summary>Serving size versus quantity</summary><div class="a">
+      <p>The serving size is what the label's numbers refer to — "per 100 g". The quantity is what you
+      actually ate. The app divides one by the other, so if the label says 389 kcal per 100 g and you had
+      80 g, you get 311.</p>
+      <p>If either is missing the item still saves; it just contributes nothing to the totals until you
+      fill in both.</p>
+    </div></details>
+
+    <details class="q"><summary>Correcting a label</summary><div class="a">
+      <p>Open the item, expand the nutrition label, and change what's wrong. Saving writes the correction
+      back to the shared catalog and updates any other entry of the same food on today's log.</p>
+      <p><em>Reset saved label</em> empties the numbers but keeps the name. <em>Delete from catalog</em>
+      removes the food entirely and takes its entries off today's log with it.</p>
+    </div></details>
+
+    <h3>Days and history</h3>
+
+    <details class="q"><summary>Start a new day, or clear the day?</summary><div class="a">
+      <p><em>Start a new day</em> is the one you want each morning. It files today's totals and weight into
+      your history, then empties the list. The individual items aren't kept — only the day's summary.</p>
+      <p><em>Clear today's entries</em> throws the day away without recording it. Use it when you've been
+      experimenting rather than eating.</p>
+      <p>Both need a second tap to confirm.</p>
+    </div></details>
+
+    <details class="q"><summary>The app says my log is still on an earlier day</summary><div class="a">
+      <p>That's the prompt at the top reminding you that yesterday never got closed. Tap
+      <em>Start a new day</em> and those totals go into your history under the correct date.</p>
+      <p>If you'd rather keep adding to it — a late night that ran past midnight — tap
+      <em>Keep adding to it</em>. It stays quiet until you next open the app.</p>
+    </div></details>
+
+    <details class="q"><summary>Recording your weight</summary><div class="a">
+      <p>Open the menu with the gear icon and type it into the Weight box. Pounds by default; the kg
+      button switches the display. Weight is always stored in pounds behind the scenes, so switching
+      units never alters your history.</p>
+      <p>Whatever is entered when you start a new day gets filed with that day. Weighing every day isn't
+      necessary — gaps are fine and the chart simply joins across them.</p>
+    </div></details>
+
+    <details class="q"><summary>Reading the chart</summary><div class="a">
+      <p>Tap <em>Chart</em> beside Recent days. Calories are the green bars on the left axis, weight is the
+      amber line on the right, and the dashed line is your calorie target if you've set one.</p>
+      <p>Drag sideways to pan. Pinch on a phone, or scroll with a mouse, to zoom. Tap a day to pin its
+      numbers at the top; tap empty space to unpin. The 7d / 30d / 90d / All buttons jump to a range.</p>
+      <p>The weight axis scales to whatever is on screen, which is why a two-pound change looks dramatic
+      when zoomed in. That's deliberate — it's the only way small changes are visible at all.</p>
+    </div></details>
+
+    <details class="q"><summary>Units and targets</summary><div class="a">
+      <p>Both live in the gear menu. Each nutrient has its own unit buttons and its own daily target;
+      set a target and a percentage appears on the summary bar.</p>
+      <p>Targets and units persist across days and never reset on their own. Targets are stored in the
+      unit you typed them in, so switching from grams to ounces re-displays them rather than changing them.</p>
+    </div></details>
+
+    <h3>Codes, tokens and people</h3>
+
+    <details class="q"><summary>Changing your code</summary><div class="a">
+      <p>Gear menu → Change your code. Type six digits and tap Change code. The device you're on switches
+      immediately.</p>
+      <p>It then shows a <code>var VAULT = ...</code> line. Copy it, paste it over the matching line near
+      the top of <code>index.html</code>, and commit — that's what makes your other devices accept the new
+      code. Until you do, this device uses the new code and the others still use the old one.</p>
+      <p>A code already used by someone else is refused.</p>
+    </div></details>
+
+    <details class="q"><summary>It says the token was rejected</summary><div class="a">
+      <p>The GitHub token has expired or been revoked. <strong>No data is lost</strong> — everything lives
+      as files in the private repo, and the app keeps working from its local copy, so carry on logging.</p>
+      <ol>
+        <li>On GitHub: Settings → Developer settings → Personal access tokens → Fine-grained tokens →
+        Generate new token.</li>
+        <li>Repository access: only the data repo. Permissions: Contents → Read and write.</li>
+        <li>Open <code>setup.html</code> locally, paste the new token, re-enter everyone's names and codes,
+        and Generate.</li>
+        <li>Paste the new <code>VAULT</code> line into <code>index.html</code> and commit it.</li>
+      </ol>
+      <p>Once the app reloads with the new line, anything you logged in the meantime syncs up.</p>
+    </div></details>
+
+    <details class="q"><summary>Adding another person</summary><div class="a">
+      <p>Run <code>setup.html</code> again with the same token and repo. Add a row for the new person with
+      their own name and 6-digit code, and keep the existing rows exactly as they are so nobody's code
+      changes. Generate, then commit the new <code>VAULT</code> line.</p>
+      <p>They get their own log file and their own targets. The food catalog is shared with everyone.</p>
+    </div></details>
+
+    <details class="q"><summary>Nobody remembers a code</summary><div class="a">
+      <p>There's no recovery — that's what makes the encryption worth anything. Run <code>setup.html</code>
+      again with a fresh code for that person and commit the new line.</p>
+      <p>Their history is safe: it lives in the data repo under their log file, and the new code opens the
+      same file as long as you keep the same order of people in the setup page.</p>
+    </div></details>
+
+    <h3>Syncing and data</h3>
+
+    <details class="q"><summary>What the status line at the bottom means</summary><div class="a">
+      <p><em>Saved</em> — everything is on GitHub. <em>Saving…</em> — a commit is queued; saves are batched
+      to roughly one every eight seconds rather than one per keystroke.</p>
+      <p><em>Offline</em> or <em>cannot reach GitHub</em> — you can keep logging. It's held on the device
+      and pushed when the connection returns.</p>
+    </div></details>
+
+    <details class="q"><summary>Two devices, or two people at once</summary><div class="a">
+      <p>Each person's log is a separate file, so those never collide. The catalog is shared, and if two
+      people edit the same food the most recent edit wins.</p>
+      <p>The app refreshes the catalog when you open it and when you return to the tab. <em>Refresh now</em>
+      in the menu forces it.</p>
+    </div></details>
+
+    <details class="q"><summary>Getting back something you deleted</summary><div class="a">
+      <p>Every save is a commit, so the data repo holds the full history. Open the repo on GitHub, click
+      <code>catalog.json</code>, then History, and look at any earlier version.</p>
+      <p>To restore, copy the values out of the old version and re-enter them in the app. Reverting the
+      file directly on GitHub also works, but the app may overwrite it if it has newer edits pending.</p>
+    </div></details>
+
+    <details class="q"><summary>Keeping the repo small</summary><div class="a">
+      <p>Every save is a commit, so the data repo grows steadily. <code>admin.html</code> — kept on your own
+      machine, not published — shows the repo size against a ceiling you set, lists every file, and can trim
+      archived days, prune deleted foods, take a backup, and squash the git history when it gets large.</p>
+      <p>Once a year is plenty for two people.</p>
+    </div></details>
+
+    <details class="q"><summary>Where everything is kept</summary><div class="a">
+      <p>Your food catalog and each person's log are JSON files in your private GitHub repo. The app
+      itself is a single HTML file on GitHub Pages. Nothing goes to any other service.</p>
+      <p>Your access token is encrypted inside the app file with your 6-digit code, and only ever
+      decrypted in your browser's memory. The code is remembered on the device so you don't retype it;
+      <em>Lock the ledger</em> forgets it.</p>
+    </div></details>
+
+  </div>
+</div>
+
+
+<div id="sheet" class="hidden">
+  <div class="sh-top">
+    <h2>History</h2>
+    <button class="btn" id="sheetclose">Close</button>
+  </div>
+  <div class="sh-read" id="sheetread"></div>
+  <div class="cvwrap"><canvas id="cv"></canvas></div>
+  <div id="ranges">
+    <button data-r="7">7d</button><button data-r="30" aria-pressed="true">30d</button>
+    <button data-r="90">90d</button><button data-r="all">All</button>
+  </div>
+  <div class="sh-legend">
+    <span><i style="background:#2E5D4F66"></i>Calories</span>
+    <span><i style="background:#B67B18"></i>Weight</span>
+  </div>
+  <div class="sh-hint">Drag to pan · pinch or scroll to zoom · tap a day for detail</div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ============================================================
+   Generated by setup.html. Replace this whole line with the
+   output of that page. Until then the app runs on this device only.
+   ============================================================ */
+var VAULT = {"v":1,"iter":350000,"entries":[{"id":"u1","salt":"OyA1KQbj/kewIpqDrLMUDA==","iv":"/SHHRbneUmx8gJIU","ct":"Nb4hszXjpjIQaEEUe/v7mqb2Im8/4KiuXn7fgjBgOnjLp7gUdXv4MBdpChVHvtaVXLnwHsRfvMJoi6KvcbztwH1kXTquz9JaKqYUhdj2GyBUuKgeHarLUdb5sfEVVYKHQ2LqxhNchGNAYiTmcF77LRev+nTfGQBfQHLNyuYiRwn4J+MlipShw2Z32tMYjh2z+vTbou2BmPpJ8vKa5QIN37/96rqBMyqfgNwcbcN11RNtQ3Jnof8SWxysn6yK"},{"id":"u2","salt":"B0oNssqkI/ihlP2gQuip0A==","iv":"6O1uGrTRCJUji7TH","ct":"0wwnj9e7mVMupd2yueNr6KI50dRTd0XaaR4EqY4p8rhMDlNp8Z28Q8RwYgB4au+YvrCnSQpbQGQs6muohbel8mthb7Kx44eLmU8bdXJunXFVBmLGgleD+4UUbBLolUKgMzbfK1bz9NZEz5hWYXXVxngC/dX2Ba2num2xWyWyqbCrAe2rzDBf2yjD4NskCWveD3v7m2j19hWChboNt8Y5rWsh8Ujyekop6PoypqjwJn6iygpW+N8/gtK23SD3"}]};
+
+var LS = {
+  get:function(k){ try{ var v = localStorage.getItem('ml:'+k); return v ? JSON.parse(v) : null; }catch(e){ return null; } },
+  set:function(k,v){ try{ localStorage.setItem('ml:'+k, JSON.stringify(v)); }catch(e){} },
+  del:function(k){ try{ localStorage.removeItem('ml:'+k); }catch(e){} }
+};
+/* a code changed on this device before the new VAULT line was committed */
+var override = LS.get('vault');
+if(override && override.v) VAULT = override;
+
+var LIVE = !!(VAULT && VAULT.entries && VAULT.entries.length);
+var BRANCH = 'main';
+var ITER_DEFAULT = 350000;
+var S = { token:null, owner:null, repo:null, id:null, name:null };
+
+/* ---------------- crypto ---------------- */
+function fromB64(s){
+  var bin = atob(s), a = new Uint8Array(bin.length);
+  for(var i=0;i<bin.length;i++) a[i] = bin.charCodeAt(i);
+  return a;
+}
+function toB64(bytes){
+  var s = '';
+  new Uint8Array(bytes).forEach(function(b){ s += String.fromCharCode(b); });
+  return btoa(s);
+}
+function pbkdf(pin){
+  return crypto.subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, ['deriveKey']);
+}
+async function unlock(pin){
+  if(!LIVE || !crypto.subtle) return null;
+  var base = await pbkdf(pin);
+  for(var i=0;i<VAULT.entries.length;i++){
+    var e = VAULT.entries[i];
+    try{
+      var k = await crypto.subtle.deriveKey(
+        { name:'PBKDF2', salt:fromB64(e.salt), iterations:VAULT.iter, hash:'SHA-256' },
+        base, { name:'AES-GCM', length:256 }, false, ['decrypt']);
+      var pt = await crypto.subtle.decrypt({ name:'AES-GCM', iv:fromB64(e.iv) }, k, fromB64(e.ct));
+      var payload = JSON.parse(new TextDecoder().decode(pt));
+      payload._i = i;
+      return payload;
+    }catch(err){ /* not this entry */ }
+  }
+  return null;
+}
+async function seal(pin, payload){
+  var salt = crypto.getRandomValues(new Uint8Array(16));
+  var iv   = crypto.getRandomValues(new Uint8Array(12));
+  var base = await pbkdf(pin);
+  var k = await crypto.subtle.deriveKey(
+    { name:'PBKDF2', salt:salt, iterations:VAULT.iter || ITER_DEFAULT, hash:'SHA-256' },
+    base, { name:'AES-GCM', length:256 }, false, ['encrypt']);
+  var ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv:iv }, k,
+             new TextEncoder().encode(JSON.stringify(payload)));
+  return { salt:toB64(salt), iv:toB64(iv), ct:toB64(ct) };
+}
+
+/* ---------------- github ---------------- */
+var shas = {};
+function ghUrl(p){ return 'https://api.github.com/repos/' + S.owner + '/' + S.repo + '/contents/' + p; }
+function b64utf8(str){
+  var bin = '';
+  new TextEncoder().encode(str).forEach(function(b){ bin += String.fromCharCode(b); });
+  return btoa(bin);
+}
+function utf8b64(b64){
+  var bin = atob(String(b64).replace(/\s/g,'')), a = new Uint8Array(bin.length);
+  for(var i=0;i<bin.length;i++) a[i] = bin.charCodeAt(i);
+  return new TextDecoder().decode(a);
+}
+async function ghGet(path){
+  var r = await fetch(ghUrl(path) + '?ref=' + BRANCH + '&nocache=' + Date.now(), {
+    headers:{ Authorization:'Bearer ' + S.token, Accept:'application/vnd.github+json' } });
+  if(r.status === 404) return null;
+  if(!r.ok){
+    var body = await r.text();
+    var e = new Error('GET ' + r.status);
+    e.status = r.status;
+    e.retry = r.status === 429 || (r.status === 403 && /rate limit|abuse|secondary/i.test(body));
+    throw e;
+  }
+  var j = await r.json();
+  shas[path] = j.sha;
+  return JSON.parse(utf8b64(j.content));
+}
+async function ghPut(path, obj, msg){
+  var body = { message:msg, branch:BRANCH, content:b64utf8(JSON.stringify(obj, null, 1)) };
+  if(shas[path]) body.sha = shas[path];
+  var r = await fetch(ghUrl(path), {
+    method:'PUT',
+    headers:{ Authorization:'Bearer ' + S.token, Accept:'application/vnd.github+json', 'Content-Type':'application/json' },
+    body: JSON.stringify(body) });
+  if(r.status === 409 || r.status === 422){ var c = new Error('conflict'); c.conflict = true; throw c; }
+  if(!r.ok){
+    var body = await r.text();
+    var e = new Error('PUT ' + r.status);
+    e.status = r.status;
+    e.retry = r.status === 429 || (r.status === 403 && /rate limit|abuse|secondary/i.test(body));
+    throw e;
+  }
+  var j = await r.json();
+  shas[path] = j.content.sha;
+  return j;
+}
+
+/* ---------------- model ---------------- */
+var MASS = { g:1, mg:0.001, oz:28.3495 };
+var NUTRIENTS = [
+  { k:'calories', name:'Calories',    base:'kcal', units:['kcal'] },
+  { k:'fat',      name:'Fat',         base:'g',    units:['g','oz'] },
+  { k:'satfat',   name:'Sat. fat',    base:'g',    units:['g','oz'] },
+  { k:'carbs',    name:'Carbs',       base:'g',    units:['g','oz'] },
+  { k:'fiber',    name:'Fiber',       base:'g',    units:['g','oz'] },
+  { k:'sugar',    name:'Sugars',      base:'g',    units:['g','oz'] },
+  { k:'protein',  name:'Protein',     base:'g',    units:['g','oz'] },
+  { k:'sodium',   name:'Sodium',      base:'mg',   units:['mg','g','oz'] },
+  { k:'chol',     name:'Cholesterol', base:'mg',   units:['mg','g','oz'] }
+];
+var NUT = {}; NUTRIENTS.forEach(function(n){ NUT[n.k] = n; });
+var MAIN = ['protein','satfat','fiber','carbs'];
+var REST = ['fat','sugar','sodium','chol'];
+
+var state = { items:[], date:'', cat:{}, hist:[], weight:null, histOpen:false,
+              prefs:{ units:{}, targets:{}, weightUnit:'lb' }, showAll:false };
+var lastPull = 0;
+
+function db(){
+  var o = {};
+  Object.keys(state.cat).forEach(function(k){ if(!state.cat[k].deleted) o[k] = state.cat[k]; });
+  return o;
+}
+function defaults(){
+  var u = {}; NUTRIENTS.forEach(function(n){ u[n.k] = n.base; });
+  return { units:u, targets:{}, weightUnit:'lb' };
+}
+function today(){
+  var d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function dparse(s){ var p = String(s).split('-'); return new Date(+p[0], +p[1]-1, +p[2]); }
+function prettyDate(s){
+  if(!s) return '';
+  return dparse(s).toLocaleDateString(undefined, { weekday:'long', month:'long', day:'numeric' });
+}
+function shortDate(s){ return dparse(s).toLocaleDateString(undefined, { month:'short', day:'numeric' }); }
+function uid(){ return 'e' + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+function key(name){ return String(name||'').trim().toLowerCase().replace(/\s+/g,' '); }
+function num(v){ var n = parseFloat(v); return isFinite(n) ? n : null; }
+function fmt(n, dp){
+  if(n === null || n === undefined || !isFinite(n)) return '–';
+  var d = dp === undefined ? (Math.abs(n) >= 100 ? 0 : 1) : dp;
+  return n.toFixed(d).replace(/\.0+$/,'');
+}
+function toG(a, u){ return a * (MASS[u] || 1); }
+function display(k, v){
+  if(k === 'calories') return v;
+  var n = NUT[k], u = state.prefs.units[k] || n.base;
+  return toG(v, n.base) / (MASS[u] || 1);
+}
+function fromDisplay(k, v){
+  if(k === 'calories') return v;
+  var n = NUT[k], u = state.prefs.units[k] || n.base;
+  return toG(v, u) / (MASS[n.base] || 1);
+}
+function unitOf(k){ return k === 'calories' ? 'kcal' : (state.prefs.units[k] || NUT[k].base); }
+function factor(it){
+  var q = num(it.qty), s = num(it.serving && it.serving.amt);
+  if(q === null || s === null || s <= 0) return null;
+  return toG(q, it.unit || 'g') / toG(s, (it.serving && it.serving.unit) || 'g');
+}
+function entryValue(it, k){
+  var f = factor(it), per = it.vals ? num(it.vals[k]) : null;
+  if(f === null || per === null) return null;
+  return per * f;
+}
+function totals(){
+  var t = {};
+  NUTRIENTS.forEach(function(n){ t[n.k] = 0; });
+  state.items.forEach(function(it){
+    NUTRIENTS.forEach(function(n){
+      var v = entryValue(it, n.k);
+      if(v !== null) t[n.k] += v;
+    });
+  });
+  return t;
+}
+function strip(items){
+  return items.map(function(o){
+    return { id:o.id, name:o.name, qty:o.qty, unit:o.unit, serving:o.serving, vals:o.vals, open:o.open };
+  });
+}
+/* weight is kept in lb; kg is a display choice */
+function wDisp(lb){ return state.prefs.weightUnit === 'kg' ? lb / 2.2046226 : lb; }
+function wStore(v){ return state.prefs.weightUnit === 'kg' ? v * 2.2046226 : v; }
+
+/* ---------------- sync ---------------- */
+var dirty = { log:false, cat:false };
+var pushTimer = null, pushing = false, backoff = 4000, status = 'idle';
+var MIN_GAP = 15000;   /* GitHub allows 500 content-writes an hour; this stays well under */
+
+function logPath(){ return 'log-' + S.id + '.json'; }
+function logBody(){
+  return { name:S.name, day:state.date, items:strip(state.items),
+           prefs:state.prefs, weight:state.weight, history:state.hist };
+}
+function markLog(){ dirty.log = true; cacheLocal(); schedulePush(MIN_GAP); }
+function markCat(){ dirty.cat = true; cacheLocal(); schedulePush(MIN_GAP); }
+function cacheLocal(){
+  LS.set('cat', state.cat);
+  if(S.id) LS.set('log:' + S.id, { day:state.date, items:strip(state.items), prefs:state.prefs,
+                                   weight:state.weight, history:state.hist, dirty:dirty });
+}
+function schedulePush(ms){
+  setStatus('pending');
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(function(){ pushTimer = null; push(); }, ms);
+}
+async function push(){
+  if(pushing || !LIVE || !S.token) return;
+  if(!dirty.log && !dirty.cat) return;
+  if(!navigator.onLine){ setStatus('offline'); schedulePush(6000); return; }
+  pushing = true; setStatus('syncing');
+  try{
+    if(dirty.cat){
+      await withRetry('catalog.json', function(remote){
+        if(remote) state.cat = mergeCat(remote.foods || {}, state.cat);
+        return { foods: prune(state.cat) };
+      }, 'catalog');
+      dirty.cat = false;
+    }
+    if(dirty.log){
+      await withRetry(logPath(), function(){ return logBody(); }, 'log ' + (S.name || S.id));
+      dirty.log = false;
+    }
+    cacheLocal(); backoff = 4000; setStatus('idle');
+  }catch(e){
+    if(e.retry){
+      setStatus('busy');
+      backoff = Math.max(90000, Math.min(backoff * 2, 600000));
+    } else {
+      setStatus(e.status === 401 || e.status === 403 ? 'auth' : (navigator.onLine ? 'error' : 'offline'));
+      backoff = Math.min(backoff * 2, 60000);
+    }
+    schedulePush(backoff);
+  }finally{ pushing = false; }
+}
+async function withRetry(path, build, label){
+  for(var a=0;a<3;a++){
+    try{
+      return await ghPut(path, build(null), label + ' — ' + new Date().toISOString().slice(0,16).replace('T',' '));
+    }catch(e){
+      if(!e.conflict || a === 2) throw e;
+      var fresh = await ghGet(path);
+      build(fresh);
+    }
+  }
+}
+function mergeCat(remote, local){
+  var out = {};
+  Object.keys(remote).forEach(function(k){ out[k] = remote[k]; });
+  Object.keys(local).forEach(function(k){
+    var a = out[k], b = local[k];
+    if(!a || (b.t || 0) >= (a.t || 0)) out[k] = b;
+  });
+  return out;
+}
+function prune(cat){
+  var cut = Date.now() - 45*24*3600*1000, out = {};
+  Object.keys(cat).forEach(function(k){
+    if(cat[k].deleted && (cat[k].t || 0) < cut) return;
+    out[k] = cat[k];
+  });
+  return out;
+}
+async function pull(force){
+  if(!LIVE || !S.token) return;
+  if(!force && Date.now() - lastPull < 45000) return;
+  try{
+    var remote = await ghGet('catalog.json');
+    lastPull = Date.now();
+    state.cat = mergeCat(remote && remote.foods ? remote.foods : {}, state.cat);
+    cacheLocal();
+  }catch(e){
+    setStatus(e.retry ? 'busy' : (e.status === 401 || e.status === 403 ? 'auth'
+              : (navigator.onLine ? 'error' : 'offline')));
+  }
+}
+window.addEventListener('online', function(){ schedulePush(500); });
+window.addEventListener('offline', function(){ setStatus('offline'); });
+window.addEventListener('pagehide', function(){ cacheLocal(); if(dirty.log || dirty.cat) push(); });
+document.addEventListener('visibilitychange', function(){
+  if(document.hidden){ cacheLocal(); if(dirty.log || dirty.cat) push(); return; }
+  if(!S.token) return;
+  pull(false).then(function(){ if(!document.querySelector('.entry.open')) render(); });
+});
+
+var statusEl = null;
+function setStatus(s){
+  status = s;
+  if(!statusEl) return;
+  var txt = { idle:'Saved', pending:'Saving…', syncing:'Saving…',
+              offline:'Offline — kept on this device',
+              error:'Cannot reach GitHub — kept on this device',
+              busy:'GitHub is throttling — retrying shortly',
+              auth:'Token rejected — generate a new one',
+              local:'This device only' }[s] || '';
+  statusEl.textContent = txt;
+  statusEl.className = 'sync' + (s === 'idle' || s === 'pending' || s === 'syncing' ? '' : ' warn');
+}
+
+/* ---------------- toast / confirm ---------------- */
+var toastEl = document.getElementById('toast'), toastT = null;
+function toast(msg){
+  toastEl.textContent = msg; toastEl.classList.add('show');
+  clearTimeout(toastT); toastT = setTimeout(function(){ toastEl.classList.remove('show'); }, 2600);
+}
+function arm(btn, prompt, run){
+  var idle = btn.textContent, armed = false, t = null;
+  btn.addEventListener('click', function(){
+    if(armed){ clearTimeout(t); armed = false; btn.textContent = idle; btn.classList.remove('armed'); run(); return; }
+    armed = true; btn.textContent = prompt; btn.classList.add('armed');
+    clearTimeout(t);
+    t = setTimeout(function(){ armed = false; btn.textContent = idle; btn.classList.remove('armed'); }, 4000);
+  });
+}
+
+/* ---------------- gate ---------------- */
+var buf = '', busy = false;
+var dotsEl = document.getElementById('dots'), padEl = document.getElementById('pad');
+var gateMsg = document.getElementById('gatemsg'), gateSub = document.getElementById('gate-sub');
+for(var i=0;i<6;i++){ var dd = document.createElement('div'); dd.className='dot'; dotsEl.appendChild(dd); }
+['1','2','3','4','5','6','7','8','9','clear','0','del'].forEach(function(v){
+  var b = document.createElement('button');
+  b.textContent = v === 'del' ? 'delete' : (v === 'clear' ? 'clear' : v);
+  if(v === 'del' || v === 'clear') b.className = 'wide';
+  b.addEventListener('click', function(){ press(v); });
+  padEl.appendChild(b);
+});
+function drawDots(){
+  [].forEach.call(dotsEl.children, function(el, i){ el.classList.toggle('on', i < buf.length); });
+}
+function press(v){
+  if(busy) return;
+  gateMsg.textContent = '';
+  if(v === 'del') buf = buf.slice(0,-1);
+  else if(v === 'clear') buf = '';
+  else if(buf.length < 6) buf += v;
+  drawDots();
+  if(buf.length === 6){
+    var code = buf; buf = '';
+    setTimeout(function(){ drawDots(); tryCode(code, false); }, 120);
+  }
+}
+async function tryCode(code, silent){
+  busy = true;
+  if(!silent) gateMsg.textContent = 'Unlocking…';
+  await new Promise(function(r){ setTimeout(r, 20); });
+  var payload = LIVE ? await unlock(code)
+                     : { token:null, owner:null, repo:null, name:'This device', id:'local' };
+  busy = false;
+  if(!payload){ gateMsg.textContent = 'That code does not match.'; return false; }
+  S = payload;
+  LS.set('code', code);
+  await open();
+  return true;
+}
+async function open(){
+  var cached = LS.get('log:' + S.id), cachedCat = LS.get('cat');
+  if(cachedCat) state.cat = cachedCat;
+  if(cached){
+    state.date  = cached.day || today();
+    state.items = cached.items || [];
+    state.prefs = cached.prefs || defaults();
+    state.hist  = cached.history || [];
+    state.weight = cached.weight || null;
+    if(cached.dirty){ dirty.log = !!cached.dirty.log; dirty.cat = !!cached.dirty.cat; }
+  }
+  document.getElementById('gate').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  normalise(); render();
+
+  if(LIVE){
+    try{
+      var r = await ghGet(logPath());
+      if(r && !dirty.log){
+        state.date   = r.day || today();
+        state.items  = r.items || [];
+        state.prefs  = r.prefs || state.prefs;
+        state.hist   = r.history || [];
+        state.weight = r.weight || null;
+        normalise();
+      }
+    }catch(e){ setStatus(e.status === 401 ? 'auth' : 'error'); }
+    await pull(true);
+    if(dirty.log || dirty.cat) schedulePush(1200);
+  } else setStatus('local');
+  buildPanel(); render();
+}
+function normalise(){
+  if(!state.prefs) state.prefs = defaults();
+  if(!state.prefs.units) state.prefs.units = defaults().units;
+  if(!state.prefs.targets) state.prefs.targets = {};
+  if(!state.prefs.weightUnit) state.prefs.weightUnit = 'lb';
+  NUTRIENTS.forEach(function(n){
+    var u = state.prefs.units[n.k];
+    if(!u || n.units.indexOf(u) === -1) state.prefs.units[n.k] = n.base;   /* ml is gone */
+  });
+  if(!Array.isArray(state.hist)) state.hist = [];
+  if(!state.date) state.date = today();
+}
+
+/* ---------------- summary ---------------- */
+function pctOf(k, total){
+  var t = num(state.prefs.targets[k]);
+  if(t === null || t <= 0) return null;
+  return (total / t) * 100;
+}
+function renderSummary(){
+  var t = totals();
+  document.getElementById('s-kcal').textContent = fmt(t.calories, 0);
+  var p = pctOf('calories', t.calories);
+  var pe = document.getElementById('s-kcal-pct');
+  pe.textContent = p === null ? '' : fmt(p,0) + '% of ' + fmt(state.prefs.targets.calories,0) + ' kcal';
+  pe.classList.toggle('over', p !== null && p > 100);
+  var rail = document.getElementById('s-rail');
+  rail.style.width = (p === null ? 0 : Math.min(100, p)) + '%';
+  rail.classList.toggle('over', p !== null && p > 100);
+
+  var host = document.getElementById('s-macros');
+  host.innerHTML = '';
+  (state.showAll ? MAIN.concat(REST) : MAIN).forEach(function(k){
+    var n = NUT[k], v = display(k, t[k]), pc = pctOf(k, t[k]);
+    var el = document.createElement('div');
+    el.className = 'm';
+    el.innerHTML = '<div class="n"></div><div class="v num"></div><div class="sub num"></div>';
+    el.querySelector('.n').textContent = n.name;
+    el.querySelector('.v').innerHTML = fmt(v) + '<span>' + unitOf(k) + '</span>';
+    var sub = el.querySelector('.sub');
+    sub.textContent = pc === null ? '' : fmt(pc,0) + '%';
+    sub.classList.toggle('over', pc !== null && pc > 100);
+    host.appendChild(el);
+  });
+  document.getElementById('tabbtn').textContent = state.showAll ? 'fewer nutrients' : 'more nutrients';
+}
+
+/* ---------------- panel ---------------- */
+function buildPanel(){
+  var host = document.getElementById('p-rows');
+  host.innerHTML = '';
+  NUTRIENTS.forEach(function(n){
+    var row = document.createElement('div');
+    row.className = 'prow';
+    row.innerHTML = '<div class="pn">' + n.name + '</div>' +
+                    '<input class="num" inputmode="decimal" placeholder="target"><div class="chips"></div>';
+    var inp = row.querySelector('input');
+    var tv = state.prefs.targets[n.k];
+    inp.value = (tv === undefined || tv === null || tv === '') ? '' : fmt(display(n.k, tv), 2);
+    inp.addEventListener('input', function(){
+      var v = num(inp.value);
+      if(v === null || v <= 0) delete state.prefs.targets[n.k];
+      else state.prefs.targets[n.k] = fromDisplay(n.k, v);
+      renderSummary(); markLog();
+    });
+    var chips = row.querySelector('.chips');
+    n.units.forEach(function(u){
+      var b = document.createElement('button');
+      b.textContent = u;
+      b.setAttribute('aria-pressed', String(unitOf(n.k) === u));
+      b.addEventListener('click', function(){
+        state.prefs.units[n.k] = u;
+        buildPanel(); renderSummary(); markLog();
+      });
+      chips.appendChild(b);
+    });
+    host.appendChild(row);
+  });
+  document.getElementById('daynote').textContent =
+    state.items.length + (state.items.length === 1 ? ' entry · ' : ' entries · ') + prettyDate(state.date) +
+    ' · ' + state.hist.length + ' day' + (state.hist.length === 1 ? '' : 's') + ' recorded';
+  document.getElementById('whoami').textContent =
+    LIVE ? ('Signed in as ' + (S.name || S.id) + '.') : 'No vault set up — this device only.';
+  buildWeight();
+}
+function buildWeight(){
+  var inp = document.getElementById('wt');
+  inp.placeholder = 'Weight in ' + state.prefs.weightUnit;
+  inp.value = state.weight && state.weight.lb ? fmt(wDisp(state.weight.lb), 1) : '';
+  [].forEach.call(document.querySelectorAll('#wunits button'), function(b){
+    b.setAttribute('aria-pressed', String(b.dataset.u === state.prefs.weightUnit));
+  });
+}
+document.getElementById('wt').addEventListener('input', function(){
+  var v = num(this.value);
+  state.weight = (v === null || v <= 0) ? null : { lb: wStore(v), d: today() };
+  markLog(); renderHistory();
+});
+[].forEach.call(document.querySelectorAll('#wunits button'), function(b){
+  b.addEventListener('click', function(){
+    state.prefs.weightUnit = b.dataset.u;
+    buildWeight(); markLog(); renderHistory(); if(chart.open) drawChart();
+  });
+});
+document.getElementById('gearbtn').addEventListener('click', function(){
+  var p = document.getElementById('panel');
+  p.classList.toggle('hidden');
+  if(!p.classList.contains('hidden')) buildPanel();
+});
+document.getElementById('tabbtn').addEventListener('click', function(){
+  state.showAll = !state.showAll; renderSummary();
+});
+
+/* start a new day: archive the totals, keep no item detail */
+function newDay(){
+  var t = totals();
+  if(state.items.length || state.weight){
+    var rec = { d: state.date };
+    NUTRIENTS.forEach(function(n){ if(t[n.k] > 0) rec[n.k] = Math.round(t[n.k] * 10) / 10; });
+    if(state.weight && state.weight.lb) rec.w = Math.round(state.weight.lb * 10) / 10;
+    state.hist = state.hist.filter(function(h){ return h.d !== rec.d; });
+    state.hist.push(rec);
+    state.hist.sort(function(a,b){ return a.d < b.d ? -1 : 1; });
+    if(state.hist.length > 730) state.hist = state.hist.slice(-730);
+  }
+  var n = state.items.length;
+  state.items = [];
+  state.weight = null;
+  state.date = today();
+  markLog(); schedulePush(1200);
+  buildPanel(); render();
+  toast(n ? ('Day closed — ' + fmt(t.calories,0) + ' kcal recorded.') : 'New day started.');
+}
+arm(document.getElementById('newday'), 'Tap again to start a new day', newDay);
+arm(document.getElementById('clearday'), 'Tap again to discard', function(){
+  if(!state.items.length){ toast('Nothing to clear yet.'); return; }
+  var n = state.items.length;
+  state.items = [];
+  markLog(); schedulePush(1200); buildPanel(); render();
+  toast('Discarded ' + n + (n === 1 ? ' entry.' : ' entries.'));
+});
+document.getElementById('syncnow').addEventListener('click', function(){
+  if(!LIVE){ toast('Nothing to sync — no vault set up.'); return; }
+  pull(true).then(function(){ render(); schedulePush(200); toast('Refreshed from GitHub.'); });
+});
+document.getElementById('lock').addEventListener('click', function(){
+  cacheLocal();
+  if(dirty.log || dirty.cat) push();
+  LS.del('code');
+  S = { token:null, owner:null, repo:null, id:null, name:null };
+  document.getElementById('panel').classList.add('hidden');
+  document.getElementById('app').classList.add('hidden');
+  gateSub.textContent = 'Enter your 6-digit code to open your log.';
+  gateMsg.textContent = ''; buf = ''; drawDots();
+  document.getElementById('gate').classList.remove('hidden');
+});
+
+/* ---------------- change code ---------------- */
+document.getElementById('changecode').addEventListener('click', async function(){
+  var el = document.getElementById('newcode'), out = document.getElementById('codeout');
+  var v = (el.value || '').replace(/\D/g,'');
+  if(!LIVE){ toast('No vault to change — run setup.html first.'); return; }
+  if(v.length !== 6){ toast('A code needs exactly 6 digits.'); return; }
+  var clash = false;
+  this.textContent = 'Encrypting…';
+  try{
+    var probe = await unlock(v);
+    if(probe && probe._i !== S._i) clash = true;
+    if(clash){ toast('Someone else already uses that code.'); return; }
+    var box = await seal(v, { token:S.token, owner:S.owner, repo:S.repo, name:S.name, id:S.id });
+    var entries = VAULT.entries.slice();
+    entries[S._i] = { id:S.id, salt:box.salt, iv:box.iv, ct:box.ct };
+    var next = { v:1, iter:VAULT.iter || ITER_DEFAULT, entries:entries };
+    VAULT = next;
+    LS.set('vault', next);
+    LS.set('code', v);
+    out.value = 'var VAULT = ' + JSON.stringify(next) + ';';
+    document.getElementById('codewrap').classList.remove('hidden');
+    el.value = '';
+    toast('Code changed on this device. Commit the line below for your other devices.');
+  }catch(e){
+    toast('Could not change the code: ' + e.message);
+  }finally{
+    this.textContent = 'Change code';
+  }
+});
+document.getElementById('copycode').addEventListener('click', function(){
+  var t = document.getElementById('codeout');
+  t.select();
+  navigator.clipboard.writeText(t.value).then(function(){ toast('Copied. Paste it into index.html and commit.'); })
+    .catch(function(){ try{ document.execCommand('copy'); toast('Copied.'); }catch(e){} });
+});
+
+/* ---------------- entries ---------------- */
+document.getElementById('addbtn').addEventListener('click', function(){
+  if(state.date !== today() && state.items.length === 0) state.date = today();
+  var it = { id:uid(), name:'', qty:'', unit:'g', serving:{ amt:'', unit:'g' }, vals:{},
+             meal:false, parts:[], open:true, lblOpen:true };
+  state.items.unshift(it);
+  render(); markLog();
+  window.scrollTo({ top:0, behavior:'auto' });
+  var el = document.querySelector('[data-id="' + it.id + '"] .f-name');
+  focusField(el);
+});
+
+function render(){
+  renderSummary();
+  var list = document.getElementById('list');
+  list.innerHTML = '';
+  if(!state.items.length){
+    list.innerHTML = '<div class="empty"><b>Nothing logged yet</b>Add your first item and its label. ' +
+      'Anything you save joins the shared food catalog.</div>';
+  } else {
+    state.items.forEach(function(it){ list.appendChild(it.open ? openCard(it) : shutCard(it)); });
+  }
+  var f = document.createElement('div');
+  f.className = 'foot';
+  f.innerHTML = '<span></span><span class="sync" id="syncchip"></span>';
+  f.querySelector('span').textContent =
+    prettyDate(state.date) + ' · ' + Object.keys(db()).length + ' foods in the catalog';
+  list.appendChild(f);
+  statusEl = document.getElementById('syncchip');
+  setStatus(status);
+  renderHistory();
+  renderRollover();
+}
+
+/* a quiet nudge when the open log belongs to an earlier day */
+var rolloverHidden = false;
+function renderRollover(){
+  var el = document.getElementById('rollover');
+  var days = Math.round((dparse(today()) - dparse(state.date)) / 86400000);
+  var ripe = new Date().getHours() >= 2 || days > 1;   /* let the small hours belong to yesterday */
+  var stale = days > 0 && ripe && (state.items.length > 0 || !!state.weight);
+  if(!stale || rolloverHidden){ el.classList.add('hidden'); el.innerHTML = ''; return; }
+  var t = totals();
+  el.classList.remove('hidden');
+  el.innerHTML = '<p>This log is still on <b></b>' +
+    '<span class="tot"></span> Starting a new day files those totals in your history.</p>' +
+    '<div class="brow"><button class="btn solid" id="ro-yes">Start a new day</button>' +
+    '<button class="btn" id="ro-no">Keep adding to it</button></div>';
+  el.querySelector('b').textContent = prettyDate(state.date) + '.';
+  el.querySelector('.tot').textContent = state.items.length
+    ? ' ' + state.items.length + (state.items.length === 1 ? ' entry, ' : ' entries, ') + fmt(t.calories,0) + ' kcal.'
+    : '';
+  document.getElementById('ro-yes').addEventListener('click', function(){ newDay(); });
+  document.getElementById('ro-no').addEventListener('click', function(){
+    rolloverHidden = true;
+    renderRollover();
+    toast('Left as is. The prompt will return next time you open the app.');
+  });
+}
+
+function shutCard(it){
+  var el = document.createElement('div');
+  el.className = 'entry'; el.dataset.id = it.id;
+  var btn = document.createElement('button');
+  btn.className = 'head';
+  var cal = entryValue(it,'calories'), pr = entryValue(it,'protein'), cb = entryValue(it,'carbs');
+  var qty = (it.qty !== '' && it.qty !== null) ? fmt(num(it.qty)) + ' ' + it.unit : 'no quantity';
+  if(it.meal) qty = 'meal · ' + qty;
+  btn.innerHTML = '<span class="nm"></span>' +
+    '<span class="k num">C <b>' + (cb === null ? '–' : fmt(display('carbs', cb))) + '</b></span>' +
+    '<span class="k num">P <b>' + (pr === null ? '–' : fmt(display('protein', pr))) + '</b></span>' +
+    '<span class="cal num">' + (cal === null ? '–' : fmt(cal,0)) + '</span>';
+  var nm = btn.querySelector('.nm');
+  nm.textContent = it.name || 'Untitled item';
+  var em = document.createElement('em'); em.textContent = qty; nm.appendChild(em);
+  btn.addEventListener('click', function(){ it.open = true; render(); });
+  el.appendChild(btn);
+  return el;
+}
+
+
+/* ---------------- meals ----------------
+   A meal is a pot of something built from catalog items. Its "serving" is the
+   whole pot in grams and its values are the pot's totals, so the ordinary
+   quantity maths then works out the share the person actually ate. */
+function mealTotals(it){
+  var g = 0, vals = {};
+  (it.parts || []).forEach(function(p){
+    var q = num(p.qty);
+    if(q === null || q <= 0) return;
+    var grams = toG(q, p.unit || 'g');
+    g += grams;
+    var s = num(p.serving && p.serving.amt);
+    if(s === null || s <= 0 || !p.vals) return;
+    var f = grams / toG(s, (p.serving && p.serving.unit) || 'g');
+    NUTRIENTS.forEach(function(n){
+      var v = num(p.vals[n.k]);
+      if(v !== null) vals[n.k] = (vals[n.k] || 0) + v * f;
+    });
+  });
+  Object.keys(vals).forEach(function(k){ vals[k] = Math.round(vals[k] * 10) / 10; });
+  return { g: Math.round(g * 10) / 10, vals: vals };
+}
+function hasVals(p){ return !!(p && p.vals && Object.keys(p.vals).length); }
+function partKcal(p){
+  var q = num(p.qty), s = num(p.serving && p.serving.amt);
+  if(q === null || s === null || s <= 0 || !p.vals || p.vals.calories === undefined) return null;
+  return p.vals.calories * (toG(q, p.unit || 'g') / toG(s, (p.serving && p.serving.unit) || 'g'));
+}
+function syncMeal(it){
+  var t = mealTotals(it);
+  it.serving = { amt: t.g > 0 ? t.g : '', unit:'g' };
+  it.vals = t.vals;
+}
+/* one autocomplete implementation, used by item names and by ingredients */
+function attachSuggest(inp, wrap, onPick){
+  var boxEl = null;
+  function close(){ if(boxEl){ boxEl.remove(); boxEl = null; } }
+  function show(){
+    close();
+    var q = key(inp.value);
+    if(!q) return;
+    var live = db();
+    var hits = Object.keys(live).filter(function(k){ return k.indexOf(q) !== -1 && k !== q; })
+      .sort(function(a,b){ return a.indexOf(q) - b.indexOf(q) || a.localeCompare(b); }).slice(0,6);
+    if(!hits.length) return;
+    boxEl = document.createElement('div');
+    boxEl.className = 'sugg';
+    hits.forEach(function(k){
+      var rec = live[k];
+      var b = document.createElement('button');
+      b.textContent = rec.name;
+      var s = document.createElement('span');
+      var c = rec.vals && rec.vals.calories;
+      s.textContent = (rec.meal ? 'meal' : (c ? fmt(c,0) + ' kcal' : 'no label')) + ' / ' +
+        (rec.serving && rec.serving.amt ? fmt(num(rec.serving.amt)) + rec.serving.unit : 'serving');
+      b.appendChild(s);
+      function go(e){ e.preventDefault(); close(); onPick(k, rec); }
+      b.addEventListener('mousedown', go);
+      b.addEventListener('touchstart', go, { passive:false });
+      boxEl.appendChild(b);
+    });
+    wrap.appendChild(boxEl);
+    var vh = (window.visualViewport ? window.visualViewport.height : window.innerHeight);
+    if(wrap.getBoundingClientRect().bottom + boxEl.offsetHeight + 12 > vh) boxEl.classList.add('up');
+  }
+  inp.addEventListener('input', show);
+  inp.addEventListener('blur', function(){ setTimeout(close, 140); });
+  return { show:show, close:close };
+}
+
+function labelSummary(it){
+  if(it.meal){
+    var t = mealTotals(it);
+    var n = (it.parts || []).filter(function(p){ return key(p.name); }).length;
+    return n + (n === 1 ? ' ingredient' : ' ingredients') +
+           (t.g ? ' · ' + fmt(t.g,0) + ' g total' : '') +
+           (t.vals.calories ? ' · ' + fmt(t.vals.calories,0) + ' kcal' : '');
+  }
+  var s = num(it.serving.amt);
+  var bits = [];
+  if(it.vals.calories !== undefined) bits.push(fmt(it.vals.calories,0) + ' kcal');
+  ['protein','carbs','fiber','satfat'].forEach(function(k){
+    if(it.vals[k] !== undefined) bits.push(NUT[k].name.replace('. ','') + ' ' + fmt(it.vals[k]));
+  });
+  var per = s !== null ? ('per ' + fmt(s) + ' ' + (it.serving.unit || 'g')) : 'no serving size';
+  return bits.length ? (per + ' · ' + bits.join(' · ')) : (per + ' · no values saved');
+}
+
+function openCard(it){
+  var el = document.createElement('div');
+  el.className = 'entry open'; el.dataset.id = it.id;
+
+  var head = document.createElement('div');
+  head.className = 'head';
+  head.innerHTML = '<span class="nm"></span>' +
+    '<button class="collapse" title="Save and collapse" aria-label="Save and collapse">' +
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round">' +
+    '<path d="M6 14.5 12 8.5l6 6"/></svg></button>';
+  head.querySelector('.nm').textContent = it.name || (it.meal ? 'New meal' : 'New item');
+  head.querySelector('.collapse').addEventListener('click', function(){ commit(it); });
+  el.appendChild(head);
+
+  /* name */
+  var f1 = document.createElement('div');
+  f1.className = 'fld';
+  f1.innerHTML = '<label>' + (it.meal ? 'Meal' : 'Item') + '</label><div class="namewrap">' +
+                 '<input class="f-name" autocomplete="off" placeholder="' +
+                 (it.meal ? 'e.g. Sunday stew' : 'Start typing, e.g. rolled oats') + '"></div>';
+  var nameInp = f1.querySelector('.f-name');
+  nameInp.value = it.name || '';
+  attachSuggest(nameInp, f1.querySelector('.namewrap'), function(k, rec){
+    it.name = rec.name;
+    it.meal = !!rec.meal;
+    if(rec.meal){
+      it.parts = (rec.parts || []).map(function(p){ return Object.assign({}, p); });
+      syncMeal(it);
+    } else {
+      it.serving = { amt:(rec.serving && rec.serving.amt) || '', unit:(rec.serving && rec.serving.unit) || 'g' };
+      it.vals = Object.assign({}, rec.vals || {});
+    }
+    it.lblOpen = false;
+    render(); markLog();
+    focusField(document.querySelector('[data-id="' + it.id + '"] .f-qty'));
+  });
+  nameInp.addEventListener('input', function(){
+    it.name = nameInp.value;
+    head.querySelector('.nm').textContent = it.name || (it.meal ? 'New meal' : 'New item');
+    markLog();
+  });
+  el.appendChild(f1);
+
+  /* single item or built meal */
+  var types = document.createElement('div');
+  types.className = 'typechips';
+  [['Single item', false], ['Meal', true]].forEach(function(pair){
+    var b = document.createElement('button');
+    b.textContent = pair[0];
+    b.setAttribute('aria-pressed', String(!!it.meal === pair[1]));
+    b.addEventListener('click', function(){
+      if(!!it.meal === pair[1]) return;
+      it.meal = pair[1];
+      if(it.meal){
+        if(!it.parts || !it.parts.length) it.parts = [{ name:'', qty:'', unit:'g' }];
+        syncMeal(it);
+      }
+      it.lblOpen = true;
+      render(); markLog();
+    });
+    types.appendChild(b);
+  });
+  el.appendChild(types);
+
+  /* quantity */
+  var f2 = document.createElement('div');
+  f2.className = 'fld';
+  f2.innerHTML = '<label>' + (it.meal ? 'How much of it did you have?' : 'How much did you have?') +
+                 '</label><div class="qtyrow">' +
+                 '<input class="f-qty num" inputmode="decimal" placeholder="Quantity"><div class="chips"></div></div>';
+  var qtyInp = f2.querySelector('.f-qty');
+  qtyInp.value = it.qty === null ? '' : it.qty;
+  qtyInp.addEventListener('input', function(){ it.qty = qtyInp.value; live(); });
+  ['g','oz'].forEach(function(u){
+    var b = document.createElement('button');
+    b.textContent = u;
+    b.setAttribute('aria-pressed', String(it.unit === u));
+    b.addEventListener('click', function(){
+      it.unit = u;
+      [].forEach.call(f2.querySelectorAll('.qtyrow .chips button'), function(x){
+        x.setAttribute('aria-pressed', String(x.textContent === u));
+      });
+      live();
+    });
+    f2.querySelector('.chips').appendChild(b);
+  });
+  if(it.meal){
+    var all = document.createElement('button');
+    all.className = 'allof'; all.textContent = 'All of it';
+    all.addEventListener('click', function(){
+      var t = mealTotals(it);
+      if(!t.g){ toast('Add some ingredients first.'); return; }
+      it.qty = t.g; it.unit = 'g';
+      render(); markLog();
+    });
+    f2.querySelector('.qtyrow').appendChild(all);
+  }
+
+  /* the middle section: ingredients for a meal, a nutrition label otherwise */
+  var mid = document.createElement('div');
+  if(it.meal){
+    el.appendChild(f2);                      /* how much you had, first */
+
+    var tot = document.createElement('div');
+    tot.className = 'mealtot';
+    el.appendChild(tot);
+    function paintTotal(){
+      var t = mealTotals(it);
+      if(!t.g){ tot.innerHTML = '<span>Add ingredients below and the whole pot is totted up here.</span>'; return; }
+      var bits = ['<b>' + fmt(t.g,0) + ' g</b> in the pot'];
+      if(t.vals.calories) bits.push('<b>' + fmt(t.vals.calories,0) + '</b> kcal');
+      ['protein','carbs','fiber'].forEach(function(k){
+        if(t.vals[k]) bits.push('<span>' + NUT[k].name + '</span> ' + fmt(display(k, t.vals[k])));
+      });
+      var f = factor(it);
+      var share = (f !== null && t.g)
+        ? ('<br><span>Your share: ' + fmt(f*100,0) + '% · ' + fmt(entryValue(it,'calories'),0) + ' kcal · ' +
+           ['protein','carbs','fiber'].filter(function(k){ return t.vals[k]; })
+             .map(function(k){ return NUT[k].name + ' ' + fmt(display(k, entryValue(it,k))); }).join(' · ') + '</span>')
+        : '';
+      tot.innerHTML = bits.join(' · ') + share;
+    }
+    paintTotal();
+
+    mid.className = 'parts';
+    var lbl = document.createElement('span');
+    lbl.className = 'lbl';
+    lbl.textContent = 'Made with — everything that went into the pot';
+    mid.appendChild(lbl);
+
+    (it.parts || []).forEach(function(p, idx){
+      var row = document.createElement('div');
+      row.className = 'part';
+      row.innerHTML = '<div class="namewrap"><input class="p-name" autocomplete="off" placeholder="Ingredient"></div>' +
+                      '<div class="r2"><input class="p-qty num" inputmode="decimal" placeholder="Amount">' +
+                      '<div class="chips"></div><span class="kc num"></span>' +
+                      '<button class="x" aria-label="Remove ingredient">Remove</button></div>';
+      var pn = row.querySelector('.p-name'), pq = row.querySelector('.p-qty');
+      pn.value = p.name || '';
+      pq.value = p.qty === null ? '' : p.qty;
+      var kc = row.querySelector('.kc');
+      function paint(){
+        var c = partKcal(p);
+        kc.textContent = c === null ? '' : fmt(c,0) + ' kcal';
+      }
+      paint();
+      attachSuggest(pn, row.querySelector('.namewrap'), function(k, rec){
+        p.name = rec.name;
+        p.serving = { amt:(rec.serving && rec.serving.amt) || '', unit:(rec.serving && rec.serving.unit) || 'g' };
+        p.vals = Object.assign({}, rec.vals || {});
+        p.open = false;
+        syncMeal(it); render(); markLog();
+        focusField(document.querySelectorAll('[data-id="' + it.id + '"] .p-qty')[idx]);
+      });
+      pn.addEventListener('input', function(){ p.name = pn.value; markLog(); });
+      pn.addEventListener('blur', function(){
+        /* a name typed by hand that we have never seen — offer the label straight away */
+        setTimeout(function(){
+          if(key(p.name) && !db()[key(p.name)] && !hasVals(p) && !p.open){ p.open = true; render(); }
+        }, 200);
+      });
+      pq.addEventListener('input', function(){
+        p.qty = pq.value; syncMeal(it); paint(); paintTotal(); renderSummary(); markLog();
+      });
+      ['g','oz'].forEach(function(u){
+        var b = document.createElement('button');
+        b.textContent = u;
+        b.setAttribute('aria-pressed', String((p.unit || 'g') === u));
+        b.addEventListener('click', function(){
+          p.unit = u;
+          [].forEach.call(row.querySelectorAll('.r2 .chips button'), function(x){
+            x.setAttribute('aria-pressed', String(x.textContent === u));
+          });
+          syncMeal(it); paint(); paintTotal(); renderSummary(); markLog();
+        });
+        row.querySelector('.r2 .chips').appendChild(b);
+      });
+      row.querySelector('.x').addEventListener('click', function(){
+        it.parts.splice(idx, 1);
+        syncMeal(it); render(); markLog();
+      });
+
+      /* the ingredient's own label, editable inline for anything new */
+      if(key(p.name)){
+        var pl = document.createElement('div');
+        pl.className = 'plabel';
+        var ph = document.createElement('button');
+        ph.className = 'lblhead small' + (p.open ? ' open' : '');
+        ph.innerHTML = '<span class="s"></span>' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round">' +
+          '<path d="M6 9.5 12 15.5l6-6"/></svg>';
+        var known = db()[key(p.name)];
+        var sEl = ph.querySelector('.s');
+        if(hasVals(p)){
+          var ps = num(p.serving && p.serving.amt);
+          sEl.textContent = (ps !== null ? 'per ' + fmt(ps) + ' ' + (p.serving.unit || 'g') : 'no serving size') +
+            (p.vals.calories !== undefined ? ' · ' + fmt(p.vals.calories,0) + ' kcal' : '') +
+            (known ? '' : ' · new');
+          if(!known) sEl.classList.add('pnew');
+        } else {
+          sEl.textContent = 'No label yet — tap to add one';
+          sEl.classList.add('pnew');
+        }
+        ph.addEventListener('click', function(){ p.open = !p.open; render(); });
+        pl.appendChild(ph);
+
+        var pb = document.createElement('div');
+        pb.className = 'lblbody' + (p.open ? '' : ' hidden');
+        pb.innerHTML = '<div class="servrow"><input class="ps-serv num" inputmode="decimal" ' +
+                       'placeholder="Serving size"><div class="chips"></div></div><div class="grid"></div>';
+        var ps2 = pb.querySelector('.ps-serv');
+        if(!p.serving) p.serving = { amt:'', unit:'g' };
+        ps2.value = p.serving.amt === null ? '' : p.serving.amt;
+        ps2.addEventListener('input', function(){
+          p.serving.amt = ps2.value; syncMeal(it); paint(); paintTotal(); renderSummary(); markLog();
+        });
+        ['g','oz'].forEach(function(u){
+          var b = document.createElement('button');
+          b.textContent = u;
+          b.setAttribute('aria-pressed', String((p.serving.unit || 'g') === u));
+          b.addEventListener('click', function(){
+            p.serving.unit = u;
+            [].forEach.call(pb.querySelectorAll('.servrow .chips button'), function(x){
+              x.setAttribute('aria-pressed', String(x.textContent === u));
+            });
+            syncMeal(it); paint(); paintTotal(); renderSummary(); markLog();
+          });
+          pb.querySelector('.servrow .chips').appendChild(b);
+        });
+        var pg = pb.querySelector('.grid');
+        NUTRIENTS.forEach(function(n){
+          var cell = document.createElement('div');
+          cell.className = 'cell' + (n.k === 'calories' ? ' wide' : '');
+          cell.innerHTML = '<input class="num" inputmode="decimal" aria-label="' + n.name + ' per serving">' +
+                           '<label></label><span class="u">' + n.base + '</span>';
+          cell.querySelector('label').textContent = n.name;
+          var pin = cell.querySelector('input');
+          if(!p.vals) p.vals = {};
+          var pv = p.vals[n.k];
+          pin.value = (pv === undefined || pv === null) ? '' : pv;
+          pin.addEventListener('input', function(){
+            var x = num(pin.value);
+            if(x === null) delete p.vals[n.k]; else p.vals[n.k] = x;
+            syncMeal(it); paint(); paintTotal(); renderSummary(); markLog();
+          });
+          pg.appendChild(cell);
+        });
+        pl.appendChild(pb);
+        row.appendChild(pl);
+      }
+      mid.appendChild(row);
+    });
+
+    var add = document.createElement('button');
+    add.className = 'addpart'; add.textContent = 'Add an ingredient';
+    add.addEventListener('click', function(){
+      it.parts = it.parts || [];
+      it.parts.push({ name:'', qty:'', unit:'g' });
+      render(); markLog();
+      var ins = document.querySelectorAll('[data-id="' + it.id + '"] .p-name');
+      focusField(ins[ins.length-1]);
+    });
+    mid.appendChild(add);
+    el.appendChild(mid);
+  } else {
+    mid.className = 'labelbox';
+    var lblHead = document.createElement('button');
+    lblHead.className = 'lblhead';
+    lblHead.innerHTML = '<span class="t">Nutrition label</span><span class="s"></span>' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round">' +
+      '<path d="M6 9.5 12 15.5l6-6"/></svg>';
+    lblHead.querySelector('.s').textContent = it.lblOpen ? '' : labelSummary(it);
+    lblHead.classList.toggle('open', !!it.lblOpen);
+    lblHead.addEventListener('click', function(){ it.lblOpen = !it.lblOpen; render(); });
+    mid.appendChild(lblHead);
+
+    var body = document.createElement('div');
+    body.className = 'lblbody' + (it.lblOpen ? '' : ' hidden');
+    body.innerHTML = '<div class="qtyrow" style="margin-top:9px">' +
+                     '<input class="f-serv num" inputmode="decimal" placeholder="Serving size">' +
+                     '<div class="chips"></div></div><div class="grid"></div>';
+    var servInp = body.querySelector('.f-serv');
+    servInp.value = it.serving.amt === null ? '' : it.serving.amt;
+    servInp.addEventListener('input', function(){ it.serving.amt = servInp.value; live(); });
+    ['g','oz'].forEach(function(u){
+      var b = document.createElement('button');
+      b.textContent = u;
+      b.setAttribute('aria-pressed', String(it.serving.unit === u));
+      b.addEventListener('click', function(){
+        it.serving.unit = u;
+        [].forEach.call(body.querySelectorAll('.chips button'), function(x){
+          x.setAttribute('aria-pressed', String(x.textContent === u));
+        });
+        live();
+      });
+      body.querySelector('.chips').appendChild(b);
+    });
+    var grid = body.querySelector('.grid');
+    NUTRIENTS.forEach(function(n){
+      var cell = document.createElement('div');
+      cell.className = 'cell' + (n.k === 'calories' ? ' wide' : '');
+      cell.innerHTML = '<input class="num" inputmode="decimal" aria-label="' + n.name + ' per serving">' +
+                       '<label></label><span class="u">' + n.base + '</span>';
+      cell.querySelector('label').textContent = n.name;
+      var inp = cell.querySelector('input');
+      var v = it.vals[n.k];
+      inp.value = (v === undefined || v === null) ? '' : v;
+      inp.addEventListener('input', function(){
+        var x = num(inp.value);
+        if(x === null) delete it.vals[n.k]; else it.vals[n.k] = x;
+        live();
+      });
+      grid.appendChild(cell);
+    });
+    mid.appendChild(body);
+    el.appendChild(f2);            /* quantity, then the label */
+    el.appendChild(mid);
+  }
+
+  var acts = document.createElement('div');
+  acts.className = 'acts';
+  var known = db()[key(it.name)];
+
+  var done = document.createElement('button');
+  done.className = 'btn solid'; done.textContent = it.meal ? 'Save meal' : 'Save item';
+  done.addEventListener('click', function(){ commit(it); });
+  acts.appendChild(done);
+
+  var del = document.createElement('button');
+  del.className = 'btn'; del.textContent = 'Remove entry';
+  del.addEventListener('click', function(){
+    state.items = state.items.filter(function(x){ return x.id !== it.id; });
+    render(); markLog(); buildPanel();
+  });
+  acts.appendChild(del);
+
+  if(known){
+    var reset = document.createElement('button');
+    reset.className = 'btn warn'; reset.textContent = it.meal ? 'Reset recipe' : 'Reset saved label';
+    arm(reset, 'Tap again to reset', function(){
+      if(it.meal){
+        putFood(key(it.name), { name:known.name, meal:true, parts:[], serving:{ amt:'', unit:'g' }, vals:{} });
+        it.parts = [{ name:'', qty:'', unit:'g' }]; syncMeal(it);
+      } else {
+        putFood(key(it.name), { name:known.name, serving:{ amt:'', unit:'g' }, vals:{} });
+        it.vals = {}; it.serving = { amt:'', unit:'g' };
+      }
+      it.lblOpen = true;
+      render(); markLog();
+      toast('Cleared ' + known.name + '.');
+    });
+    acts.appendChild(reset);
+
+    var drop = document.createElement('button');
+    drop.className = 'btn warn'; drop.textContent = 'Delete from catalog';
+    arm(drop, 'Tap again to delete', function(){
+      var k = key(it.name), nm = known.name, before = state.items.length;
+      state.cat[k] = { name:nm, deleted:true, t:Date.now() };
+      markCat();
+      state.items = state.items.filter(function(o){ return key(o.name) !== k; });
+      var gone = before - state.items.length;
+      markLog(); render(); buildPanel();
+      toast(nm + ' deleted' + (gone ? ' — ' + gone + (gone === 1 ? ' entry' : ' entries') + ' removed from today.' : '.'));
+    });
+    acts.appendChild(drop);
+  }
+  el.appendChild(acts);
+
+  function live(){ renderSummary(); markLog(); }
+  return el;
+}
+
+function putFood(k, rec){ rec.t = Date.now(); state.cat[k] = rec; markCat(); }
+function commit(it){
+  if(!key(it.name)){ toast('Give the item a name first.'); return; }
+  var k = key(it.name);
+  if(it.meal){
+    syncMeal(it);
+    var parts = (it.parts || []).filter(function(p){ return key(p.name) || num(p.qty) !== null; });
+    /* an ingredient labelled here joins the catalog like anything else */
+    parts.forEach(function(p){
+      if(!key(p.name) || !hasVals(p)) return;
+      putFood(key(p.name), { name:p.name.trim(),
+                             serving:{ amt:(p.serving && p.serving.amt) || '', unit:(p.serving && p.serving.unit) || 'g' },
+                             vals:Object.assign({}, p.vals) });
+    });
+    putFood(k, { name:it.name.trim(), meal:true,
+                 parts: parts.map(function(p){ return Object.assign({}, p); }),
+                 serving:{ amt:it.serving.amt, unit:'g' },
+                 vals:Object.assign({}, it.vals) });
+    it.open = false;
+    render(); markLog(); buildPanel();
+    return;
+  }
+  var hasLabel = Object.keys(it.vals).length > 0 || num(it.serving.amt) !== null;
+  if(hasLabel){
+    putFood(k, { name:it.name.trim(),
+                 serving:{ amt:it.serving.amt, unit:it.serving.unit || 'g' },
+                 vals:Object.assign({}, it.vals) });
+    state.items.forEach(function(o){
+      if(o.id !== it.id && key(o.name) === k){
+        o.serving = { amt:it.serving.amt, unit:it.serving.unit };
+        o.vals = Object.assign({}, it.vals);
+      }
+    });
+  } else if(!db()[k]){
+    putFood(k, { name:it.name.trim(), serving:{ amt:'', unit:'g' }, vals:{} });
+  }
+  it.open = false;
+  render(); markLog(); buildPanel();
+}
+
+/* ---------------- history strip ---------------- */
+function renderHistory(){
+  var host = document.getElementById('history');
+  var rows = state.hist.slice(-10).reverse();
+  host.innerHTML = '';
+  var h = document.createElement('div');
+  h.className = 'hhead' + (state.histOpen ? ' open' : '');
+  h.innerHTML = '<span class="lft"><span></span>' +
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round">' +
+    '<path d="M6 9.5 12 15.5l6-6"/></svg></span>' +
+    '<button class="btn tiny" id="chartbtn">Chart</button>';
+  h.querySelector('.lft span').textContent = 'Recent days' +
+    (state.hist.length ? ' (' + state.hist.length + ')' : '');
+  h.addEventListener('click', function(e){
+    if(e.target.closest('#chartbtn')) return;
+    state.histOpen = !state.histOpen;
+    renderHistory();
+  });
+  host.appendChild(h);
+  h.querySelector('#chartbtn').addEventListener('click', function(e){ e.stopPropagation(); openChart(); });
+
+  var body = document.createElement('div');
+  body.id = 'hrows';
+  if(!state.histOpen) body.className = 'hidden';
+  if(!rows.length){
+    var e = document.createElement('div');
+    e.className = 'hempty';
+    e.textContent = 'Nothing recorded yet. Use "Start a new day" and the day\u2019s totals are kept here.';
+    body.appendChild(e);
+  } else {
+    rows.forEach(function(r){
+      var row = document.createElement('div');
+      row.className = 'hrow';
+      var w = r.w ? fmt(wDisp(r.w),1) + ' ' + state.prefs.weightUnit : '';
+      row.innerHTML = '<span class="d"></span>' +
+        '<span class="c num">' + (r.calories ? fmt(r.calories,0) : '\u2013') + '<i>kcal</i></span>' +
+        '<span class="mm num">P ' + (r.protein ? fmt(display('protein', r.protein)) : '\u2013') + '</span>' +
+        '<span class="mm num">C ' + (r.carbs ? fmt(display('carbs', r.carbs)) : '\u2013') + '</span>' +
+        '<span class="w num">' + w + '</span>';
+      row.querySelector('.d').textContent = shortDate(r.d);
+      body.appendChild(row);
+    });
+  }
+  host.appendChild(body);
+}
+
+/* ---------------- chart ---------------- */
+var chart = { open:false, x0:0, x1:0, sel:null, pts:new Map(), pinch:null, drag:null };
+var DAY = 86400000;
+var cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+
+function series(){
+  return state.hist.map(function(r){
+    return { t: dparse(r.d).getTime(), cal: r.calories || null, w: r.w || null, d: r.d };
+  }).sort(function(a,b){ return a.t - b.t; });
+}
+function openChart(){
+  var s = series();
+  if(!s.length){ toast('No days recorded yet.'); return; }
+  chart.open = true;
+  document.getElementById('sheet').classList.remove('hidden');
+  setRange(30);
+}
+function closeChart(){
+  chart.open = false;
+  document.getElementById('sheet').classList.add('hidden');
+}
+document.getElementById('sheetclose').addEventListener('click', closeChart);
+document.getElementById('helpbtn').addEventListener('click', function(){
+  document.getElementById('help').classList.remove('hidden');
+  document.querySelector('.hp-body').scrollTop = 0;
+});
+document.getElementById('helpclose').addEventListener('click', function(){
+  document.getElementById('help').classList.add('hidden');
+});
+[].forEach.call(document.querySelectorAll('#ranges button'), function(b){
+  b.addEventListener('click', function(){ setRange(b.dataset.r === 'all' ? 'all' : +b.dataset.r); });
+});
+function setRange(r){
+  var s = series();
+  if(!s.length) return;
+  var last = Math.max(s[s.length-1].t, dparse(state.date).getTime());
+  if(r === 'all'){ chart.x0 = s[0].t - DAY; chart.x1 = last + DAY; }
+  else { chart.x1 = last + DAY; chart.x0 = chart.x1 - r * DAY; }
+  chart.sel = null;
+  [].forEach.call(document.querySelectorAll('#ranges button'), function(b){
+    b.setAttribute('aria-pressed', String(String(b.dataset.r) === String(r)));
+  });
+  drawChart();
+}
+function clampView(){
+  var span = chart.x1 - chart.x0;
+  var min = 3 * DAY, max = 800 * DAY;
+  if(span < min){ var c = (chart.x0 + chart.x1)/2; chart.x0 = c - min/2; chart.x1 = c + min/2; }
+  if(span > max){ chart.x1 = chart.x0 + max; }
+}
+function drawChart(){
+  if(!chart.open) return;
+  var wrapEl = cv.parentNode;
+  var W = wrapEl.clientWidth, H = wrapEl.clientHeight, dpr = window.devicePixelRatio || 1;
+  cv.width = W * dpr; cv.height = H * dpr;
+  cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,W,H);
+
+  var css = getComputedStyle(document.body);
+  var ink = css.getPropertyValue('--ink').trim() || '#171A15';
+  var muted = css.getPropertyValue('--muted').trim() || '#6B7065';
+  var line = css.getPropertyValue('--line').trim() || '#D3D7CB';
+  var pine = css.getPropertyValue('--pine').trim() || '#2E5D4F';
+  var ochre = css.getPropertyValue('--ochre').trim() || '#B67B18';
+
+  var L = 42, R = 46, T = 14, B = 26;
+  var pw = W - L - R, ph = H - T - B;
+  clampView();
+  var s = series();
+  var inView = s.filter(function(p){ return p.t >= chart.x0 - DAY && p.t <= chart.x1 + DAY; });
+
+  var calMax = 0;
+  inView.forEach(function(p){ if(p.cal) calMax = Math.max(calMax, p.cal); });
+  var tgt = num(state.prefs.targets.calories);
+  if(tgt) calMax = Math.max(calMax, tgt);
+  calMax = calMax ? calMax * 1.15 : 2000;
+
+  var ws = inView.filter(function(p){ return p.w; }).map(function(p){ return wDisp(p.w); });
+  var wMin = ws.length ? Math.min.apply(null, ws) : 0;
+  var wMax = ws.length ? Math.max.apply(null, ws) : 1;
+  if(wMax - wMin < 2){ var mid = (wMax + wMin)/2; wMin = mid - 1.5; wMax = mid + 1.5; }
+  else { var pad = (wMax - wMin) * 0.35; wMin -= pad; wMax += pad; }
+
+  function X(t){ return L + (t - chart.x0) / (chart.x1 - chart.x0) * pw; }
+  function Ycal(v){ return T + ph - (v / calMax) * ph; }
+  function Yw(v){ return T + ph - ((v - wMin) / (wMax - wMin)) * ph; }
+
+  /* horizontal grid + calorie axis */
+  ctx.font = '11px ' + (css.fontFamily || 'sans-serif');
+  ctx.textBaseline = 'middle';
+  var steps = 4;
+  for(var i=0;i<=steps;i++){
+    var v = calMax * i / steps, y = Ycal(v);
+    ctx.strokeStyle = line; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(L, Math.round(y)+.5); ctx.lineTo(L+pw, Math.round(y)+.5); ctx.stroke();
+    ctx.fillStyle = muted; ctx.textAlign = 'right';
+    ctx.fillText(fmt(v,0), L - 7, y);
+  }
+  /* calorie target */
+  if(tgt){
+    ctx.save(); ctx.setLineDash([4,4]); ctx.strokeStyle = ochre; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.moveTo(L, Ycal(tgt)); ctx.lineTo(L+pw, Ycal(tgt)); ctx.stroke(); ctx.restore();
+  }
+
+  /* day ticks */
+  var days = (chart.x1 - chart.x0) / DAY;
+  var every = days > 240 ? 30 : days > 90 ? 14 : days > 40 ? 7 : days > 16 ? 3 : 1;
+  ctx.textAlign = 'center'; ctx.fillStyle = muted;
+  var start = Math.ceil(chart.x0 / DAY) * DAY;
+  for(var t = start; t <= chart.x1; t += DAY * every){
+    var x = X(t);
+    if(x < L - 2 || x > L + pw + 2) continue;
+    ctx.fillText(new Date(t).toLocaleDateString(undefined, { month:'numeric', day:'numeric' }), x, T + ph + 13);
+  }
+
+  /* calorie bars */
+  var bw = Math.max(2, Math.min(22, (pw / Math.max(days,1)) * 0.62));
+  inView.forEach(function(p){
+    if(!p.cal) return;
+    var x = X(p.t), y = Ycal(p.cal);
+    ctx.fillStyle = (chart.sel && chart.sel.d === p.d) ? ink : pine + '66';
+    ctx.fillRect(x - bw/2, y, bw, T + ph - y);
+  });
+
+  /* weight line */
+  var wpts = inView.filter(function(p){ return p.w; });
+  if(wpts.length){
+    ctx.strokeStyle = ochre; ctx.lineWidth = 2; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    wpts.forEach(function(p, i){
+      var x = X(p.t), y = Yw(wDisp(p.w));
+      if(i === 0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+    wpts.forEach(function(p){
+      var x = X(p.t), y = Yw(wDisp(p.w));
+      ctx.fillStyle = ochre;
+      ctx.beginPath(); ctx.arc(x, y, chart.sel && chart.sel.d === p.d ? 5 : 3.2, 0, 6.284); ctx.fill();
+    });
+    /* right axis */
+    ctx.textAlign = 'left'; ctx.fillStyle = muted;
+    [wMin, (wMin+wMax)/2, wMax].forEach(function(v){
+      ctx.fillText(fmt(v,1), L + pw + 7, Yw(v));
+    });
+  }
+
+  /* readout */
+  var head = document.getElementById('sheetread');
+  if(chart.sel){
+    var w = chart.sel.w ? ' · ' + fmt(wDisp(chart.sel.w),1) + ' ' + state.prefs.weightUnit : '';
+    head.textContent = shortDate(chart.sel.d) + ' · ' + (chart.sel.cal ? fmt(chart.sel.cal,0) + ' kcal' : 'no calories') + w;
+  } else {
+    var n = inView.filter(function(p){ return p.cal; });
+    var avg = n.length ? n.reduce(function(a,p){ return a + p.cal; },0) / n.length : null;
+    head.textContent = n.length ? (n.length + ' days · average ' + fmt(avg,0) + ' kcal') : 'No days in view';
+  }
+}
+/* interaction: drag to pan, wheel or pinch to zoom, tap to inspect */
+function tOf(clientX){
+  var r = cv.getBoundingClientRect();
+  var L = 42, R = 46, pw = r.width - L - R;
+  return chart.x0 + ((clientX - r.left - L) / pw) * (chart.x1 - chart.x0);
+}
+function zoomAt(clientX, k){
+  var anchor = tOf(clientX);
+  chart.x0 = anchor - (anchor - chart.x0) * k;
+  chart.x1 = anchor + (chart.x1 - anchor) * k;
+  clampView(); drawChart();
+}
+cv.addEventListener('wheel', function(e){
+  e.preventDefault();
+  zoomAt(e.clientX, e.deltaY > 0 ? 1.12 : 0.89);
+}, { passive:false });
+cv.addEventListener('pointerdown', function(e){
+  cv.setPointerCapture(e.pointerId);
+  chart.pts.set(e.pointerId, e.clientX);
+  if(chart.pts.size === 2){
+    var v = [].concat.apply([], [Array.from(chart.pts.values())]);
+    chart.pinch = { d: Math.abs(v[0]-v[1]), x0:chart.x0, x1:chart.x1 };
+    chart.drag = null;
+  } else {
+    chart.drag = { x:e.clientX, t:Date.now(), moved:0 };
+  }
+});
+cv.addEventListener('pointermove', function(e){
+  if(!chart.pts.has(e.pointerId)) return;
+  chart.pts.set(e.pointerId, e.clientX);
+  if(chart.pinch && chart.pts.size === 2){
+    var v = Array.from(chart.pts.values());
+    var d = Math.abs(v[0]-v[1]);
+    if(d > 8){
+      var k = chart.pinch.d / d;
+      var mid = (v[0]+v[1])/2;
+      chart.x0 = chart.pinch.x0; chart.x1 = chart.pinch.x1;
+      zoomAt(mid, k);
+    }
+    return;
+  }
+  if(chart.drag){
+    var dx = e.clientX - chart.drag.x;
+    chart.drag.moved += Math.abs(dx);
+    chart.drag.x = e.clientX;
+    var r = cv.getBoundingClientRect();
+    var per = (chart.x1 - chart.x0) / (r.width - 88);
+    chart.x0 -= dx * per; chart.x1 -= dx * per;
+    drawChart();
+  }
+});
+function endPointer(e){
+  if(chart.drag && chart.drag.moved < 6 && Date.now() - chart.drag.t < 400){
+    /* a tap — select the nearest recorded day */
+    var t = tOf(e.clientX), best = null, bd = Infinity;
+    series().forEach(function(p){
+      var d = Math.abs(p.t - t);
+      if(d < bd){ bd = d; best = p; }
+    });
+    chart.sel = (best && bd < (chart.x1 - chart.x0) / 14) ? best : null;
+    drawChart();
+  }
+  chart.pts.delete(e.pointerId);
+  if(chart.pts.size < 2) chart.pinch = null;
+  if(chart.pts.size === 0) chart.drag = null;
+}
+cv.addEventListener('pointerup', endPointer);
+cv.addEventListener('pointercancel', function(e){ chart.pts.delete(e.pointerId); chart.pinch = null; chart.drag = null; });
+window.addEventListener('resize', function(){ if(chart.open) drawChart(); });
+
+/* ---------------- on-screen keyboard ----------------
+   The visual viewport shrinks when the keyboard opens but the layout
+   viewport does not, so sticky elements otherwise sit under it. */
+var vv = window.visualViewport;
+function kbUpdate(){
+  if(!vv) return;
+  var gap = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+  document.documentElement.style.setProperty('--kb', Math.round(gap) + 'px');
+  document.body.classList.toggle('kb', gap > 110);
+}
+if(vv){
+  vv.addEventListener('resize', kbUpdate);
+  vv.addEventListener('scroll', kbUpdate);
+}
+/* Put the field itself just below the sticky header — never centre a whole
+   card, which throws the top of a tall card off the screen. */
+function bringIntoView(el){
+  if(!el) return;
+  var vh = (window.visualViewport ? window.visualViewport.height : window.innerHeight);
+  var top = document.getElementById('top');
+  var headH = (top && !document.getElementById('app').classList.contains('hidden'))
+                ? top.getBoundingClientRect().height : 0;
+  var r = el.getBoundingClientRect();
+  var want = headH + 14;
+  var slack = 10;
+  if(r.top >= want - slack && r.bottom <= vh - slack) return;   /* already visible */
+  var delta = r.top - want;
+  if(r.bottom - delta > vh - slack) delta = r.bottom - (vh - slack);
+  if(Math.abs(delta) < 4) return;
+  try{ window.scrollBy({ top: delta, behavior:'smooth' }); }
+  catch(e){ window.scrollBy(0, delta); }
+}
+var focusTimers = [];
+function focusField(el){
+  if(!el) return;
+  focusTimers.forEach(clearTimeout); focusTimers = [];
+  el.focus({ preventScroll:true });
+  focusTimers.push(setTimeout(function(){ kbUpdate(); bringIntoView(el); }, 300));
+  focusTimers.push(setTimeout(function(){ kbUpdate(); bringIntoView(el); }, 620));
+}
+document.addEventListener('focusin', function(e){
+  var el = e.target;
+  if(!el || (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA')) return;
+  focusTimers.forEach(clearTimeout); focusTimers = [];
+  focusTimers.push(setTimeout(function(){ kbUpdate(); bringIntoView(el); }, 300));
+  focusTimers.push(setTimeout(kbUpdate, 620));
+});
+document.addEventListener('focusout', function(){
+  setTimeout(function(){
+    if(!document.querySelector('input:focus')){
+      document.body.classList.remove('kb');
+      document.documentElement.style.setProperty('--kb','0px');
+    }
+  }, 120);
+});
+
+/* ---------------- boot ---------------- */
+(async function boot(){
+  drawDots();
+  if(!LIVE){
+    gateSub.textContent = 'No vault in this file yet — run setup.html, paste the VAULT line in, and commit. ' +
+                          'Any 6 digits will open a local-only log for now.';
+  } else if(!crypto.subtle){
+    gateSub.textContent = 'This browser will not decrypt on a file:// page. Open the app over https or localhost.';
+  }
+  var saved = LS.get('code');
+  if(saved && String(saved).length === 6){
+    gateMsg.textContent = 'Unlocking…';
+    var ok = await tryCode(String(saved), true);
+    if(!ok){ LS.del('code'); gateMsg.textContent = ''; }
+  }
+})();
+
+document.addEventListener('keydown', function(e){
+  var hp = document.getElementById('help');
+  if(e.key === 'Escape' && !hp.classList.contains('hidden')){ hp.classList.add('hidden'); return; }
+  if(chart.open && e.key === 'Escape'){ closeChart(); return; }
+  if(document.getElementById('gate').classList.contains('hidden')) return;
+  if(/^[0-9]$/.test(e.key)) press(e.key);
+  else if(e.key === 'Backspace') press('del');
+});
+})();
+</script>
+</body>
+</html>
